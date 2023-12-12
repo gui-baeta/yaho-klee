@@ -98,6 +98,7 @@ std::map<std::string, bool> fn_has_side_effects_lookup{
     {"expire_items_single_map", true},
     {"expire_items_single_map_iteratively", true},
     {"packet_borrow_next_chunk", true},
+    {"packet_borrow_next_secret", true},
     {"packet_get_unread_length", true},
     {"packet_return_chunk", true},
     {"vector_borrow", false},
@@ -123,6 +124,7 @@ std::vector<std::string> fn_cannot_reorder_lookup{
     "current_time",
     "nf_set_rte_ipv4_udptcp_checksum",
     "packet_borrow_next_chunk",
+    "packet_borrow_next_secret",
     "packet_return_chunk",
 };
 

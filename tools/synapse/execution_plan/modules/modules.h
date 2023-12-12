@@ -9,3 +9,4 @@
 #include "x86/x86.h"
 #include "x86_bmv2/x86_bmv2.h"
 #include "x86_tofino/x86_tofino.h"
+#include "tfhe/tfhe.h"

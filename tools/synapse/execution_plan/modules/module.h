@@ -25,6 +25,7 @@ struct processing_result_t {
 
 class Module {
 public:
+  /* TODO GUI add modules here */
   enum ModuleType {
     x86_BMv2_CurrentTime,
     x86_BMv2_IfThen,
@@ -159,6 +160,41 @@ public:
     x86_LoadBalancedFlowHash,
     x86_ChtFindBackend,
     x86_HashObj,
+    tfhe_CurrentTime,
+    tfhe_If,
+    tfhe_Then,
+    tfhe_Else,
+    tfhe_MapGet,
+    tfhe_MapPut,
+    tfhe_MapErase,
+    tfhe_VectorBorrow,
+    tfhe_VectorReturn,
+    tfhe_DchainRejuvenateIndex,
+    tfhe_DchainAllocateNewIndex,
+    tfhe_DchainIsIndexAllocated,
+    tfhe_DchainFreeIndex,
+    tfhe_SketchExpire,
+    tfhe_SketchComputeHashes,
+    tfhe_SketchRefresh,
+    tfhe_SketchFetch,
+    tfhe_SketchTouchBuckets,
+    tfhe_PacketGetUnreadLength,
+    tfhe_PacketBorrowNextChunk,
+    tfhe_PacketBorrowNextSecret,
+    tfhe_PacketReturnChunk,
+    tfhe_Forward,
+    tfhe_Drop,
+    tfhe_Broadcast,
+    tfhe_ExpireItemsSingleMap,
+    tfhe_ExpireItemsSingleMapIteratively,
+    tfhe_RteEtherAddrHash,
+    tfhe_SetIpv4UdpTcpChecksum,
+    tfhe_LoadBalancedFlowHash,
+    tfhe_ChtFindBackend,
+    tfhe_HashObj,
+    tfhe_TruthTablePBS,
+    tfhe_Conditional,
+    tfhe_TernarySum,
   };
 
 protected:
@@ -221,6 +257,8 @@ public:
       return "BMv2";
     case x86:
       return "x86";
+    case tfhe:
+      return "tfhe";
     }
 
     assert(false && "I should not be here");

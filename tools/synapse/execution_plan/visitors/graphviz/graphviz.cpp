@@ -821,4 +821,46 @@ DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::LoadBalancedFlowHash)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::ChtFindBackend)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::HashObj)
 
+/********************************************
+ *
+ *                     tfhe
+ *
+ ********************************************/
+// TODO GUI add modules here
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::MapGet)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::CurrentTime)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::PacketBorrowNextChunk)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::PacketBorrowNextSecret)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::PacketReturnChunk)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::TruthTablePBS)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::Conditional) // FIXME This might be a problem
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::TernarySum)
+DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(targets::tfhe::If)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::Then)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::Else)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::Forward)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::Broadcast)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::Drop)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::ExpireItemsSingleMap)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::ExpireItemsSingleMapIteratively)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::RteEtherAddrHash)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::DchainRejuvenateIndex)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::VectorBorrow)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::VectorReturn)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::DchainAllocateNewIndex)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::MapPut)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::PacketGetUnreadLength)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::SetIpv4UdpTcpChecksum)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::DchainIsIndexAllocated)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::SketchComputeHashes)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::SketchExpire)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::SketchFetch)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::SketchRefresh)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::SketchTouchBuckets)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::MapErase)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::DchainFreeIndex)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::LoadBalancedFlowHash)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::ChtFindBackend)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::HashObj)
+
 } // namespace synapse

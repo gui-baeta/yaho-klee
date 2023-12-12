@@ -122,7 +122,8 @@ get_chunks_per_call_path(std::vector<call_path_t *> call_paths) {
 
     int layer = -1;
     for (auto call : cp->calls) {
-      if (call.function_name == "packet_borrow_next_chunk") {
+      if (call.function_name == "packet_borrow_next_chunk" ||
+          call.function_name == "packet_borrow_next_secret") {
         assert(call.extra_vars.find("the_chunk") != call.extra_vars.end());
 
         layer++;
@@ -139,7 +140,7 @@ get_chunks_per_call_path(std::vector<call_path_t *> call_paths) {
         auto out = call.args["the_chunk"].in;
         auto constraints = cp->constraints;
 
-        assert(layer >= 0 && layer < chunks.size());
+        assert(layer >= 0 && static_cast<size_t>(layer) < chunks.size());
         chunks[layer].out = out;
 
         layer--;

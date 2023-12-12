@@ -42,6 +42,7 @@ public:
         {TargetType::x86_BMv2, "darkorange2"},
         {TargetType::x86_Tofino, "firebrick2"},
         {TargetType::x86, "cadetblue1"},
+        {TargetType::tfhe, "mediumseagreen"},
     };
 
     ofs.open(fpath);
@@ -239,5 +240,49 @@ public:
   DECLARE_VISIT(targets::x86::LoadBalancedFlowHash)
   DECLARE_VISIT(targets::x86::ChtFindBackend)
   DECLARE_VISIT(targets::x86::HashObj)
+
+  /********************************************
+   *
+   *                  tfhe
+   *
+   ********************************************/
+
+  /* TODO GUI add modules here */
+
+  DECLARE_VISIT(targets::tfhe::MapGet)
+  DECLARE_VISIT(targets::tfhe::CurrentTime)
+  DECLARE_VISIT(targets::tfhe::PacketBorrowNextChunk)
+  DECLARE_VISIT(targets::tfhe::PacketBorrowNextSecret)
+  DECLARE_VISIT(targets::tfhe::PacketReturnChunk)
+  DECLARE_VISIT(targets::tfhe::TruthTablePBS)
+  DECLARE_VISIT(targets::tfhe::Conditional)
+  DECLARE_VISIT(targets::tfhe::TernarySum)
+  DECLARE_VISIT(targets::tfhe::If)
+  DECLARE_VISIT(targets::tfhe::Then)
+  DECLARE_VISIT(targets::tfhe::Else)
+  DECLARE_VISIT(targets::tfhe::Forward)
+  DECLARE_VISIT(targets::tfhe::Broadcast)
+  DECLARE_VISIT(targets::tfhe::Drop)
+  DECLARE_VISIT(targets::tfhe::ExpireItemsSingleMap)
+  DECLARE_VISIT(targets::tfhe::ExpireItemsSingleMapIteratively)
+  DECLARE_VISIT(targets::tfhe::RteEtherAddrHash)
+  DECLARE_VISIT(targets::tfhe::DchainRejuvenateIndex)
+  DECLARE_VISIT(targets::tfhe::VectorBorrow)
+  DECLARE_VISIT(targets::tfhe::VectorReturn)
+  DECLARE_VISIT(targets::tfhe::DchainAllocateNewIndex)
+  DECLARE_VISIT(targets::tfhe::MapPut)
+  DECLARE_VISIT(targets::tfhe::PacketGetUnreadLength)
+  DECLARE_VISIT(targets::tfhe::SetIpv4UdpTcpChecksum)
+  DECLARE_VISIT(targets::tfhe::DchainIsIndexAllocated)
+  DECLARE_VISIT(targets::tfhe::SketchComputeHashes)
+  DECLARE_VISIT(targets::tfhe::SketchExpire)
+  DECLARE_VISIT(targets::tfhe::SketchFetch)
+  DECLARE_VISIT(targets::tfhe::SketchRefresh)
+  DECLARE_VISIT(targets::tfhe::SketchTouchBuckets)
+  DECLARE_VISIT(targets::tfhe::MapErase)
+  DECLARE_VISIT(targets::tfhe::DchainFreeIndex)
+  DECLARE_VISIT(targets::tfhe::LoadBalancedFlowHash)
+  DECLARE_VISIT(targets::tfhe::ChtFindBackend)
+  DECLARE_VISIT(targets::tfhe::HashObj)
 };
 } // namespace synapse

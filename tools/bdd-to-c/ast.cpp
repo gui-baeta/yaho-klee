@@ -989,7 +989,7 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
   if (fname == "current_time") {
     associate_expr_to_local("now", call.ret);
     ignore = true;
-  } else if (fname == "packet_borrow_next_chunk") {
+  } else if (fname == "packet_borrow_next_chunk" || fname == "packet_borrow_next_secret") {
     ignore = true;
     Expr_ptr chunk_expr = transpile(this, call.args["chunk"].out);
     assert(chunk_expr->get_kind() == Node::NodeKind::CONSTANT);
@@ -1004,7 +1004,7 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
     std::string hdr_symbol;
     klee::ref<klee::Expr> hdr_expr;
 
-    auto prev_functions = get_prev_functions(bdd_call->get_prev(), "packet_borrow_next_chunk", {"current_time"});
+    auto prev_functions = get_prev_functions(bdd_call->get_prev(), fname == "packet_borrow_next_chunk" ? "packet_borrow_next_chunk" : "packet_borrow_next_secret", {"current_time"});
 
     switch (prev_functions.size()) {
     case 0: {

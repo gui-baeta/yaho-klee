@@ -15,6 +15,7 @@
 #include "map_put.h"
 #include "nf_set_rte_ipv4_tcpudp_checksum.h"
 #include "packet_borrow_next_chunk.h"
+#include "packet_borrow_next_secret.h"
 #include "packet_return_chunk.h"
 #include "vector_allocate.h"
 #include "vector_borrow.h"
@@ -27,6 +28,7 @@ inline operations_t get_operations() {
   return {
       current_time(),
       packet_borrow_next_chunk(),
+      packet_borrow_next_secret(),
       packet_return_chunk(),
       map_allocate(),
       vector_allocate(),

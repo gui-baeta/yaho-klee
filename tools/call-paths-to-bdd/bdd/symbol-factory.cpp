@@ -415,6 +415,24 @@ symbols_t SymbolFactory::dchain_allocate_new_index(call_t call,
   return symbols;
 }
 
+symbols_t SymbolFactory::packet_borrow_next_secret(call_t call, const Node *node,
+                                                  bool save) {
+  symbols_t symbols;
+
+  assert(has_arg(call, "chunk"));
+  assert(has_extra_var(call, "the_chunk"));
+
+  assert(!call.args["chunk"].out.isNull());
+  assert(!call.extra_vars["the_chunk"].second.isNull());
+
+  auto chunk = call.extra_vars["the_chunk"].second;
+  auto chunk_addr = call.args["chunk"].out;
+
+  symbols.emplace("packet_chunks", "packet_chunks", chunk, chunk_addr);
+
+  return symbols;
+}
+
 symbols_t SymbolFactory::packet_borrow_next_chunk(call_t call, const Node *node,
                                                   bool save) {
   symbols_t symbols;

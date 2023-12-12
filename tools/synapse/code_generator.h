@@ -10,6 +10,7 @@ using synapse::synthesizer::Synthesizer;
 using synapse::synthesizer::bmv2::BMv2Generator;
 using synapse::synthesizer::tofino::TofinoGenerator;
 using synapse::synthesizer::x86::x86Generator;
+using synapse::synthesizer::tfhe::tfheGenerator;
 using synapse::synthesizer::x86_bmv2::x86BMv2Generator;
 using synapse::synthesizer::x86_tofino::x86TofinoGenerator;
 
@@ -38,6 +39,7 @@ private:
 
 private:
   ExecutionPlan x86_extractor(const ExecutionPlan &execution_plan) const;
+  ExecutionPlan tfhe_extractor(const ExecutionPlan &execution_plan) const;
   ExecutionPlan x86_bmv2_extractor(const ExecutionPlan &execution_plan) const;
   ExecutionPlan x86_tofino_extractor(const ExecutionPlan &execution_plan) const;
   ExecutionPlan bmv2_extractor(const ExecutionPlan &execution_plan) const;
@@ -72,6 +74,8 @@ public:
 
         {TargetType::x86, target_helper_t(&CodeGenerator::x86_extractor,
                                           std::make_shared<x86Generator>())},
+        {TargetType::tfhe, target_helper_t(&CodeGenerator::tfhe_extractor,
+                                          std::make_shared<tfheGenerator>())},
     };
   }
 
@@ -110,10 +114,22 @@ public:
     case TargetType::x86:
       output_file += "x86.c";
       break;
+    case TargetType::tfhe:
+      output_file += "tfhe.rs";
+      break;
     }
 
     found_it->second.generator->output_to_file(output_file);
     target_helpers_loaded.push_back(found_it->second);
+  }
+
+  ExecutionPlan extract(const ExecutionPlan &execution_plan,
+                        TargetType target) {
+    auto _target = target_helpers_bank.find(target);
+    assert(_target != target_helpers_bank.end() &&
+           "TargetType not found in target_extractors_bank of CodeGenerator");
+
+    return (this->*_target->second.extractor)(execution_plan);
   }
 
   void generate(const ExecutionPlan &execution_plan) {

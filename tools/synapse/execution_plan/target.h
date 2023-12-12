@@ -19,6 +19,7 @@ enum TargetType {
   Netronome,
   FPGA,
   BMv2,
+  tfhe,
 };
 
 std::ostream &operator<<(std::ostream &os, TargetType type);

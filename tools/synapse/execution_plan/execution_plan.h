@@ -89,6 +89,8 @@ public:
   }
 
   BDD::Node_ptr get_next_node() const;
+
+  /// Returns the node selected for processing.
   ExecutionPlanNode_ptr get_active_leaf() const;
   TargetType get_current_platform() const;
 

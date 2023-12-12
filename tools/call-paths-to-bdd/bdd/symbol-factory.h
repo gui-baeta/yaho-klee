@@ -71,6 +71,7 @@ private:
   symbols_t map_get(call_t call, const Node *node, bool save);
   symbols_t dchain_is_index_allocated(call_t call, const Node *node, bool save);
   symbols_t dchain_allocate_new_index(call_t call, const Node *node, bool save);
+  symbols_t packet_borrow_next_secret(call_t call, const Node *node, bool save);
   symbols_t packet_borrow_next_chunk(call_t call, const Node *node, bool save);
   symbols_t expire_items_single_map(call_t call, const Node *node, bool save);
   symbols_t expire_items_single_map_iteratively(call_t call, const Node *node,
@@ -97,6 +98,7 @@ public:
         {"loop_invariant_produce", &SymbolFactory::no_process},
         {"packet_receive", &SymbolFactory::no_process},
         {"packet_borrow_next_chunk", &SymbolFactory::packet_borrow_next_chunk},
+        {"packet_borrow_next_secret", &SymbolFactory::packet_borrow_next_secret},
         {"packet_insert_new_chunk", &SymbolFactory::no_process},
         {"packet_shrink_chunk", &SymbolFactory::no_process},
         {"packet_get_unread_length", &SymbolFactory::no_process},

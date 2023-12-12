@@ -55,6 +55,7 @@ llvm::cl::list<TargetType> TargetList(
            clEnumValN(TargetType::Tofino, "tofino", "Tofino (P4)"),
            clEnumValN(TargetType::x86_Tofino, "x86-tofino",
                       "Tofino ctrl (C++)"),
+           clEnumValN(TargetType::tfhe, "tfhe", "TFHE-rs (Rust)"),
            clEnumValN(TargetType::x86, "x86", "x86 (DPDK C)"), clEnumValEnd),
     cat(SyNAPSE));
 
@@ -135,6 +136,35 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
   return {winner, ss};
 }
 
+void synthesize_code(const ExecutionPlanNode_ptr &ep_node, std::ofstream &myfile) {
+  if (ep_node->get_module()->get_type() == synapse::Module::ModuleType::tfhe_Conditional) {
+    auto conditional_module = std::static_pointer_cast<synapse::targets::tfhe::Conditional>(ep_node->get_module());
+    myfile << "cond_val = " << conditional_module << std::endl;
+
+    // Recursively visit the children of the Conditional node
+    for (const auto &child : ep_node->get_next()) {
+      synthesize_code(child, myfile);
+    }
+
+    myfile << "c = cond_val*(c + 1) + (not cond_val)*(c + 2)" << std::endl;
+  } else {
+    // Generate code for non-Conditional nodes
+    // ...
+  }
+}
+
+void synthesize_code(const ExecutionPlan &ep) {
+  // Create file if not exists and open it with write permission
+  std::ofstream myfile;
+  myfile.open ("main.rs");
+
+  synthesize_code(ep.get_root(), myfile);
+
+  myfile.close();
+
+  CodeGenerator code_generator(Out);
+}
+
 void synthesize(const ExecutionPlan &ep) {
   CodeGenerator code_generator(Out);
 
@@ -177,7 +207,8 @@ int main(int argc, char **argv) {
 
   if (Out.size()) {
     auto start_synthesis = std::chrono::steady_clock::now();
-    synthesize(search_results.first);
+    synthesize_code(search_results.first);
+//    synthesize(search_results.first);
     auto end_synthesis = std::chrono::steady_clock::now();
 
     synthesis_dt = std::chrono::duration_cast<std::chrono::seconds>(

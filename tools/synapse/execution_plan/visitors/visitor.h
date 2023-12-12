@@ -153,6 +153,45 @@ class ChtFindBackend;
 class HashObj;
 } // namespace x86
 
+/* TODO GUI add modules here */
+namespace tfhe {
+class MapGet;
+class CurrentTime;
+class PacketBorrowNextChunk;
+class PacketBorrowNextSecret;
+class PacketReturnChunk;
+class TruthTablePBS;
+class Conditional;
+class TernarySum;
+class If;
+class Then;
+class Else;
+class Forward;
+class Broadcast;
+class Drop;
+class ExpireItemsSingleMap;
+class ExpireItemsSingleMapIteratively;
+class RteEtherAddrHash;
+class DchainRejuvenateIndex;
+class VectorBorrow;
+class VectorReturn;
+class DchainAllocateNewIndex;
+class MapPut;
+class PacketGetUnreadLength;
+class SetIpv4UdpTcpChecksum;
+class DchainIsIndexAllocated;
+class SketchComputeHashes;
+class SketchExpire;
+class SketchFetch;
+class SketchRefresh;
+class SketchTouchBuckets;
+class MapErase;
+class DchainFreeIndex;
+class LoadBalancedFlowHash;
+class ChtFindBackend;
+class HashObj;
+} // namespace tfhe
+
 } // namespace targets
 
 class ExecutionPlanVisitor {
@@ -316,6 +355,49 @@ public:
   VISIT(targets::x86::LoadBalancedFlowHash)
   VISIT(targets::x86::ChtFindBackend)
   VISIT(targets::x86::HashObj)
+
+  /*************************************
+   *
+   *                tfhe
+   *
+   * **********************************/
+  /* TODO GUI add modules here */
+
+  VISIT(targets::tfhe::MapGet)
+  VISIT(targets::tfhe::CurrentTime)
+  VISIT(targets::tfhe::PacketBorrowNextChunk)
+  VISIT(targets::tfhe::PacketReturnChunk)
+  VISIT(targets::tfhe::PacketBorrowNextSecret)
+  VISIT(targets::tfhe::TruthTablePBS)
+  VISIT(targets::tfhe::Conditional)
+  VISIT(targets::tfhe::TernarySum)
+  VISIT(targets::tfhe::If)
+  VISIT(targets::tfhe::Then)
+  VISIT(targets::tfhe::Else)
+  VISIT(targets::tfhe::Forward)
+  VISIT(targets::tfhe::Broadcast)
+  VISIT(targets::tfhe::Drop)
+  VISIT(targets::tfhe::ExpireItemsSingleMap)
+  VISIT(targets::tfhe::ExpireItemsSingleMapIteratively)
+  VISIT(targets::tfhe::RteEtherAddrHash)
+  VISIT(targets::tfhe::DchainRejuvenateIndex)
+  VISIT(targets::tfhe::VectorBorrow)
+  VISIT(targets::tfhe::VectorReturn)
+  VISIT(targets::tfhe::DchainAllocateNewIndex)
+  VISIT(targets::tfhe::MapPut)
+  VISIT(targets::tfhe::PacketGetUnreadLength)
+  VISIT(targets::tfhe::SetIpv4UdpTcpChecksum)
+  VISIT(targets::tfhe::DchainIsIndexAllocated)
+  VISIT(targets::tfhe::SketchComputeHashes)
+  VISIT(targets::tfhe::SketchExpire)
+  VISIT(targets::tfhe::SketchFetch)
+  VISIT(targets::tfhe::SketchRefresh)
+  VISIT(targets::tfhe::SketchTouchBuckets)
+  VISIT(targets::tfhe::MapErase)
+  VISIT(targets::tfhe::DchainFreeIndex)
+  VISIT(targets::tfhe::LoadBalancedFlowHash)
+  VISIT(targets::tfhe::ChtFindBackend)
+  VISIT(targets::tfhe::HashObj)
 
 protected:
   virtual void log(const ExecutionPlanNode *ep_node) const;

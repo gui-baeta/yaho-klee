@@ -467,4 +467,28 @@ CodeGenerator::x86_extractor(const ExecutionPlan &execution_plan) const {
   return execution_plan;
 }
 
+ExecutionPlan
+CodeGenerator::tfhe_extractor(const ExecutionPlan &execution_plan) const {
+  // No extraction at all, just asserting that this targets contains only tfhe
+  // nodes.
+
+  auto nodes = std::vector<ExecutionPlanNode_ptr>{execution_plan.get_root()};
+
+  while (nodes.size()) {
+    auto node = nodes[0];
+    assert(node);
+
+    nodes.erase(nodes.begin());
+
+    auto module = node->get_module();
+    assert(module);
+    assert(module->get_target() == TargetType::tfhe);
+
+    auto next = node->get_next();
+    nodes.insert(nodes.end(), next.begin(), next.end());
+  }
+
+  return execution_plan;
+}
+
 } // namespace synapse

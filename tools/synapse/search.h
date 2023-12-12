@@ -68,6 +68,9 @@ public:
     case TargetType::x86:
       targets.push_back(targets::x86::x86Target::build());
       break;
+    case TargetType::tfhe:
+      targets.push_back(targets::tfhe::tfheTarget::build());
+      break;
     }
   }
 

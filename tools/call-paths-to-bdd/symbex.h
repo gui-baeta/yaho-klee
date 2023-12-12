@@ -47,6 +47,7 @@ constexpr char FN_SET_CHECKSUM_ARG_L4[] = "l4_header";
 constexpr char FN_SET_CHECKSUM_ARG_PACKET[] = "packet";
 constexpr char CHECKSUM[] = "checksum";
 
+constexpr char FN_BORROW_SECRET[] = "packet_borrow_next_secret";
 constexpr char FN_BORROW_CHUNK[] = "packet_borrow_next_chunk";
 constexpr char FN_RETURN_CHUNK[] = "packet_return_chunk";
 constexpr char FN_GET_UNREAD_LEN[] = "packet_get_unread_length";

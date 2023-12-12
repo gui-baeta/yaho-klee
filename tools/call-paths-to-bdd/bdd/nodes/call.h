@@ -6,6 +6,7 @@ namespace BDD {
 
 class Call : public Node {
 private:
+  // From load-call-paths
   call_t call;
 
 public:
