@@ -22,6 +22,8 @@ void ExecutionPlanNode::set_prev(ExecutionPlanNode_ptr _prev) { prev = _prev; }
 const Module_ptr &ExecutionPlanNode::get_module() const { return module; }
 void ExecutionPlanNode::replace_module(Module_ptr _module) { module = _module; }
 
+// Get the child nodes.
+// If there are two child nodes, the first node is the then arm and the second node is the else arm.
 const Branches &ExecutionPlanNode::get_next() const { return next; }
 ExecutionPlanNode_ptr ExecutionPlanNode::get_prev() const { return prev; }
 

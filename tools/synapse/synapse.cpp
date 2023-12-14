@@ -14,6 +14,7 @@
 #include <expr/Parser.h>
 #include <fstream>
 #include <iomanip>
+#include <string>
 #include <iostream>
 #include <memory>
 #include <regex>
@@ -136,29 +137,38 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
   return {winner, ss};
 }
 
-void synthesize_code(const ExecutionPlanNode_ptr &ep_node, std::ofstream &myfile) {
+std::string synthesize_code(const ExecutionPlanNode_ptr &ep_node) {
+  std::string code("");
+  code += ep_node->get_module()->get_name() + std::string(" ");
+
   if (ep_node->get_module()->get_type() == synapse::Module::ModuleType::tfhe_Conditional) {
     auto conditional_module = std::static_pointer_cast<synapse::targets::tfhe::Conditional>(ep_node->get_module());
-    myfile << "cond_val = " << conditional_module << std::endl;
+    code += std::string("cond_val = ") + conditional_module->to_string() + std::string("\n");
 
-    // Recursively visit the children of the Conditional node
-    for (const auto &child : ep_node->get_next()) {
-      synthesize_code(child, myfile);
-    }
-
-    myfile << "c = cond_val*(c + 1) + (not cond_val)*(c + 2)" << std::endl;
-  } else {
-    // Generate code for non-Conditional nodes
-    // ...
+    // Recursively synthesize the children of the Conditional node
+    code += std::string("c = cond_val*(") + synthesize_code(ep_node->get_next()[0]) + std::string(") + (not cond_val)*(") + synthesize_code(ep_node->get_next()[1]) + std::string(")\n");
+  } else if (ep_node->get_module()->get_type() == synapse::Module::ModuleType::tfhe_TernarySum) {
+    auto ternary_sum_module = std::static_pointer_cast<synapse::targets::tfhe::TernarySum>(ep_node->get_module());
+    code += ternary_sum_module->to_string();
   }
+
+  if (!ep_node->get_next().empty()) {
+    code += synthesize_code(ep_node->get_next()[0]);
+  }
+
+  return code;
 }
+
 
 void synthesize_code(const ExecutionPlan &ep) {
   // Create file if not exists and open it with write permission
   std::ofstream myfile;
   myfile.open ("main.rs");
 
-  synthesize_code(ep.get_root(), myfile);
+  myfile << synthesize_code(ep.get_root());
+
+  myfile.flush();
+  std::cout << myfile.rdbuf() << std::endl;
 
   myfile.close();
 

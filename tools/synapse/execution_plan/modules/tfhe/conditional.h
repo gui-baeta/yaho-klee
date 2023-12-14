@@ -58,7 +58,6 @@ private:
   // Collection of all the binary conditions to evaluate
   klee::ref<klee::Expr> condition;
 public:
-  bool already_visited = false;
 
   Conditional() : tfheModule(ModuleType::tfhe_Conditional, "Conditional") {}
 
@@ -139,6 +138,13 @@ public:
   }
 
   const klee::ref<klee::Expr> &get_condition() const { return condition; }
+
+  std::string to_string() const {
+    std::string str;
+    llvm::raw_string_ostream s(str);
+    this->get_condition()->print(s);
+    return s.str();
+  }
 
   friend std::ostream& operator<<(std::ostream& os, const Conditional& conditional) {
     std::string str;

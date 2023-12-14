@@ -51,7 +51,7 @@ private:
                               BDD::Node_ptr node) override {
     processing_result_t result;
 
-    return result; // FIXME Just to text the generation of the Execution Plan
+//    return result; // FIXME Just to text the generation of the Execution Plan
 
     // Check if this is a valid return chunk
     auto casted = BDD::cast_node<BDD::Call>(node);
@@ -144,6 +144,18 @@ public:
   }
 
   const std::string &get_expression() const { return this->expression; }
+
+  std::string to_string() const {
+    std::string str;
+    llvm::raw_string_ostream s(str);
+    this->get_expression();
+    return s.str();
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const TernarySum& ternary_sum) {
+    os << ternary_sum.get_expression();
+    return os;
+  }
 };
 } // namespace tfhe
 } // namespace targets

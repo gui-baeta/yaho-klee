@@ -1,4 +1,9 @@
 ---
-BasedOnStyle:  LLVM
-Standard: Cpp11
+BasedOnStyle: Google
+IndentWidth: 4
+TabWidth: 4
+AccessModifierOffset: -4
+SortIncludes: Never
+Standard: c++11
+UseTab: Never
 ...

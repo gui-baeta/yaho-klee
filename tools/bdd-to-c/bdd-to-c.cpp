@@ -138,7 +138,7 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target) {
 
       root = nullptr;
       break;
-    };
+    }
 
     case BDD::Node::NodeType::CALL: {
       auto bdd_call = static_cast<const BDD::Call *>(root);
@@ -150,58 +150,58 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target) {
 
       root = root->get_next().get();
       break;
-    };
+    }
 
     case BDD::Node::NodeType::RETURN_INIT: {
       auto return_init = static_cast<const BDD::ReturnInit *>(root);
       Expr_ptr ret_value;
 
       switch (return_init->get_return_value()) {
-      case BDD::ReturnInit::ReturnType::SUCCESS: {
-        ret_value = Constant::build(PrimitiveType::PrimitiveKind::INT, 1);
-        break;
-      };
-      case BDD::ReturnInit::ReturnType::FAILURE: {
-        ret_value = Constant::build(PrimitiveType::PrimitiveKind::INT, 0);
-        break;
-      };
+        case BDD::ReturnInit::ReturnType::SUCCESS: {
+          ret_value = Constant::build(PrimitiveType::PrimitiveKind::INT, 1);
+          break;
+        }
+        case BDD::ReturnInit::ReturnType::FAILURE: {
+          ret_value = Constant::build(PrimitiveType::PrimitiveKind::INT, 0);
+          break;
+        }
       }
 
       nodes.push_back(Return::build(ret_value));
 
       root = nullptr;
       break;
-    };
+    }
 
     case BDD::Node::NodeType::RETURN_PROCESS: {
       auto return_process = static_cast<const BDD::ReturnProcess *>(root);
       Node_ptr new_node;
 
       switch (return_process->get_return_operation()) {
-      case BDD::ReturnProcess::Operation::FWD:
-      case BDD::ReturnProcess::Operation::BCAST: {
-        Expr_ptr ret_value =
-            Constant::build(PrimitiveType::PrimitiveKind::INT,
-                            return_process->get_return_value());
-        new_node = Return::build(ret_value);
-        break;
-      };
-      case BDD::ReturnProcess::Operation::DROP: {
-        Node_ptr ret = Return::build(ast.get_from_local("device"));
-        Comment_ptr comm = Comment::build("dropping");
-        new_node = Block::build(std::vector<Node_ptr>{comm, ret}, false);
-        break;
-      };
-      default: {
-        assert(false);
-      }
+        case BDD::ReturnProcess::Operation::FWD:
+        case BDD::ReturnProcess::Operation::BCAST: {
+          Expr_ptr ret_value =
+              Constant::build(PrimitiveType::PrimitiveKind::INT,
+                              return_process->get_return_value());
+          new_node = Return::build(ret_value);
+          break;
+        }
+        case BDD::ReturnProcess::Operation::DROP: {
+          Node_ptr ret = Return::build(ast.get_from_local("device"));
+          Comment_ptr comm = Comment::build("dropping");
+          new_node = Block::build(std::vector<Node_ptr>{comm, ret}, false);
+          break;
+        }
+        default: {
+          assert(false);
+        }
       }
 
       nodes.push_back(new_node);
 
       root = nullptr;
       break;
-    };
+    }
 
     default: {
       assert(false);

@@ -8,6 +8,7 @@ class ExecutionPlanVisitor;
 
 class ExecutionPlanNode;
 typedef std::shared_ptr<ExecutionPlanNode> ExecutionPlanNode_ptr;
+// For a binary branch, the first element is the then arm and the second element is the else arm.
 typedef std::vector<ExecutionPlanNode_ptr> Branches;
 
 class Module;

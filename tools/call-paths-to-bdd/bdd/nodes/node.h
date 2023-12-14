@@ -59,7 +59,7 @@ public:
     prev = _prev;
   }
 
-  void disconnect() {
+  virtual void disconnect() {
     prev = nullptr;
     next = nullptr;
   }

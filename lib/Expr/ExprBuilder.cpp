@@ -203,15 +203,15 @@ namespace {
       return Base->SExt(LHS, W);
     }
 
-    ref<Expr> Add(const ref<Expr> &LHS, const ref<Expr> &RHS) {
+    virtual ref<Expr> Add(const ref<Expr> &LHS, const ref<Expr> &RHS) {
       return Base->Add(LHS, RHS);
     }
 
-    ref<Expr> Sub(const ref<Expr> &LHS, const ref<Expr> &RHS) {
+    virtual ref<Expr> Sub(const ref<Expr> &LHS, const ref<Expr> &RHS) {
       return Base->Sub(LHS, RHS);
     }
 
-    ref<Expr> Mul(const ref<Expr> &LHS, const ref<Expr> &RHS) {
+    virtual ref<Expr> Mul(const ref<Expr> &LHS, const ref<Expr> &RHS) {
       return Base->Mul(LHS, RHS);
     }
 
@@ -231,19 +231,19 @@ namespace {
       return Base->SRem(LHS, RHS);
     }
 
-    ref<Expr> Not(const ref<Expr> &LHS) {
+    virtual ref<Expr> Not(const ref<Expr> &LHS) {
       return Base->Not(LHS);
     }
 
-    ref<Expr> And(const ref<Expr> &LHS, const ref<Expr> &RHS) {
+    virtual ref<Expr> And(const ref<Expr> &LHS, const ref<Expr> &RHS) {
       return Base->And(LHS, RHS);
     }
 
-    ref<Expr> Or(const ref<Expr> &LHS, const ref<Expr> &RHS) {
+    virtual ref<Expr> Or(const ref<Expr> &LHS, const ref<Expr> &RHS) {
       return Base->Or(LHS, RHS);
     }
 
-    ref<Expr> Xor(const ref<Expr> &LHS, const ref<Expr> &RHS) {
+    virtual ref<Expr> Xor(const ref<Expr> &LHS, const ref<Expr> &RHS) {
       return Base->Xor(LHS, RHS);
     }
 
@@ -259,11 +259,11 @@ namespace {
       return Base->AShr(LHS, RHS);
     }
 
-    ref<Expr> Eq(const ref<Expr> &LHS, const ref<Expr> &RHS) {
+    virtual ref<Expr> Eq(const ref<Expr> &LHS, const ref<Expr> &RHS) {
       return Base->Eq(LHS, RHS);
     }
 
-    ref<Expr> Ne(const ref<Expr> &LHS, const ref<Expr> &RHS) {
+    virtual ref<Expr> Ne(const ref<Expr> &LHS, const ref<Expr> &RHS) {
       return Base->Ne(LHS, RHS);
     }
 
@@ -279,7 +279,7 @@ namespace {
       return Base->Ugt(LHS, RHS);
     }
 
-    ref<Expr> Uge(const ref<Expr> &LHS, const ref<Expr> &RHS) {
+    virtual ref<Expr> Uge(const ref<Expr> &LHS, const ref<Expr> &RHS) {
       return Base->Uge(LHS, RHS);
     }
 
@@ -291,11 +291,11 @@ namespace {
       return Base->Sle(LHS, RHS);
     }
 
-    ref<Expr> Sgt(const ref<Expr> &LHS, const ref<Expr> &RHS) {
+    virtual ref<Expr> Sgt(const ref<Expr> &LHS, const ref<Expr> &RHS) {
       return Base->Sgt(LHS, RHS);
     }
 
-    ref<Expr> Sge(const ref<Expr> &LHS, const ref<Expr> &RHS) {
+    virtual ref<Expr> Sge(const ref<Expr> &LHS, const ref<Expr> &RHS) {
       return Base->Sge(LHS, RHS);
     }
   };
