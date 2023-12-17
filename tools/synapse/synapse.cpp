@@ -178,6 +178,8 @@ void synthesize_code(const ExecutionPlan &ep) {
     ExecutionPlan extracted_ep = code_generator.extract(ep, TargetList[0]);
     code_generator.init_generator_state(extracted_ep);
 
+    // FIXME Still throws error "[ERROR] Unknown variable with symbol packet_chunks"
+    //  on "Conditional". packet_chunks in branch condition
     std::string code = synthesize_code_aux(ep.get_root(), code_generator);
 
     myfile << code;

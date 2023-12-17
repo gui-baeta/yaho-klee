@@ -135,11 +135,12 @@ public:
 
   void init_generator_state(const ExecutionPlan &execution_plan) {
     for (auto helper : target_helpers_loaded) {
-      auto &extractor = helper.extractor;
       auto &generator = helper.generator;
 
-      auto extracted_ep = (this->*extractor)(execution_plan);
-      generator->init_state(extracted_ep);
+      // Cast Synthesizer to its child tfheGenerator
+//      auto tfhe_generator = std::static_pointer_cast<synapse::synthesizer::tfhe::tfheGenerator>(generator);
+//      tfhe_generator->init_state(extracted_ep);
+      generator->init_state(execution_plan);
     }
   }
 

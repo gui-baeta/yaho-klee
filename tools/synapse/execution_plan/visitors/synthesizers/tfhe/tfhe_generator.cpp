@@ -20,6 +20,15 @@
 
 namespace synapse {
 namespace synthesizer {
+void Synthesizer::init_state(ExecutionPlan ep) {
+    std::cerr << "Synthesizer::init_state is not implemented. This method shouldn't be called" << std::endl;
+    exit(2);
+}
+}
+}
+
+namespace synapse {
+namespace synthesizer {
 namespace tfhe {
 
 std::string tfheGenerator::transpile(klee::ref<klee::Expr> expr) {
@@ -544,7 +553,20 @@ void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
 
 void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
                           const target::Conditional *node) {
-  // TODO Implement
+    // TODO Implement
+    auto _condition = node->get_condition();
+    auto condition = transpile(_condition);
+
+    nf_process_builder.indent();
+    nf_process_builder.append("if (");
+    nf_process_builder.append(condition);
+    nf_process_builder.append(") {");
+    nf_process_builder.append_new_line();
+
+    nf_process_builder.inc_indentation();
+
+    vars.push();
+    pending_ifs.push();
 }
 
 void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
