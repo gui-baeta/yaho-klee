@@ -74,6 +74,8 @@ public:
     generate(target_ep);
     *os << code;
   }
+  // FIXME Maybe error comes from here??
+  virtual void init_state(ExecutionPlan ep);
 
 protected:
   void fill_mark(std::string marker_label, const std::string &content) {

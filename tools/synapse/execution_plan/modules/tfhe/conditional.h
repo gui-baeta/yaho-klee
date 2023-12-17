@@ -2,6 +2,8 @@
 
 #include "tfhe_module.h"
 
+#include "../../visitors/synthesizers/tfhe/tfhe_generator.h"
+
 #include "else.h"
 #include "then.h"
 
@@ -80,8 +82,8 @@ private:
     assert(!branch_node->get_condition().isNull());
     // If condition: Expression
     auto _condition = branch_node->get_condition();
-      // TODO See later if this is enough. For now this will do.
-      this->condition = _condition;
+    // TODO See later if this is enough. For now this will do.
+    //    this->condition = _condition;
     // Then block: node
     auto _then_node = branch_node->get_on_true();
     // Else block: node
@@ -138,6 +140,11 @@ public:
   }
 
   const klee::ref<klee::Expr> &get_condition() const { return condition; }
+
+  std::string generate_code(std::shared_ptr<synapse::synthesizer::tfhe::tfheGenerator> generator) const {
+      // TODO Need to work on this translation so to be rust code
+      return generator->transpile(this->condition);
+  }
 
   std::string to_string() const {
     std::string str;

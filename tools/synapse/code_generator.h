@@ -34,8 +34,9 @@ private:
         : extractor(_extractor), generator(_generator) {}
   };
 
-  std::vector<target_helper_t> target_helpers_loaded;
-  std::map<TargetType, target_helper_t> target_helpers_bank;
+  public:
+    std::vector<target_helper_t> target_helpers_loaded;
+    std::map<TargetType, target_helper_t> target_helpers_bank;
 
 private:
   ExecutionPlan x86_extractor(const ExecutionPlan &execution_plan) const;
@@ -130,6 +131,16 @@ public:
            "TargetType not found in target_extractors_bank of CodeGenerator");
 
     return (this->*_target->second.extractor)(execution_plan);
+  }
+
+  void init_generator_state(const ExecutionPlan &execution_plan) {
+    for (auto helper : target_helpers_loaded) {
+      auto &extractor = helper.extractor;
+      auto &generator = helper.generator;
+
+      auto extracted_ep = (this->*extractor)(execution_plan);
+      generator->init_state(extracted_ep);
+    }
   }
 
   void generate(const ExecutionPlan &execution_plan) {

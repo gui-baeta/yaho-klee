@@ -137,42 +137,54 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
   return {winner, ss};
 }
 
-std::string synthesize_code(const ExecutionPlanNode_ptr &ep_node) {
+std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node, CodeGenerator code_generator) {
+  auto tfhe_generator = std::static_pointer_cast<synapse::synthesizer::tfhe::tfheGenerator>(code_generator.target_helpers_bank.find(TargetList[0])->second.generator);
+
   std::string code("");
-  code += ep_node->get_module()->get_name() + std::string(" ");
+  code += std::string("(") + ep_node->get_module()->get_name() + std::string(") ");
+  std::cout << code;
 
   if (ep_node->get_module()->get_type() == synapse::Module::ModuleType::tfhe_Conditional) {
     auto conditional_module = std::static_pointer_cast<synapse::targets::tfhe::Conditional>(ep_node->get_module());
-    code += std::string("cond_val = ") + conditional_module->to_string() + std::string("\n");
 
+    code += std::string("cond_val = ") + conditional_module->generate_code(tfhe_generator) + std::string("\n");
+    std::cout << code;
     // Recursively synthesize the children of the Conditional node
-    code += std::string("c = cond_val*(") + synthesize_code(ep_node->get_next()[0]) + std::string(") + (not cond_val)*(") + synthesize_code(ep_node->get_next()[1]) + std::string(")\n");
+    code += std::string("c = cond_val*(") + synthesize_code_aux(ep_node->get_next()[0], code_generator) + std::string(") + (not cond_val)*(") + synthesize_code_aux(ep_node->get_next()[1], code_generator) + std::string(")\n");
+    std::cout << code;
   } else if (ep_node->get_module()->get_type() == synapse::Module::ModuleType::tfhe_TernarySum) {
     auto ternary_sum_module = std::static_pointer_cast<synapse::targets::tfhe::TernarySum>(ep_node->get_module());
     code += ternary_sum_module->to_string();
+    std::cout << code;
   }
 
   if (!ep_node->get_next().empty()) {
-    code += synthesize_code(ep_node->get_next()[0]);
+    code += synthesize_code_aux(ep_node->get_next()[0], code_generator);
+    std::cout << code;
   }
 
   return code;
 }
 
-
 void synthesize_code(const ExecutionPlan &ep) {
-  // Create file if not exists and open it with write permission
-  std::ofstream myfile;
-  myfile.open ("main.rs");
+    // Create file if not exists and open it with write permission
+    std::ofstream myfile;
+    myfile.open ("main.rs");
 
-  myfile << synthesize_code(ep.get_root());
+    CodeGenerator code_generator(Out);
+    // Assuming the only target is TFHE-rs
+    assert(TargetList.size() == 1 && TargetList[0] == TargetType::tfhe);
+    code_generator.add_target(TargetList[0]);
+    ExecutionPlan extracted_ep = code_generator.extract(ep, TargetList[0]);
+    code_generator.init_generator_state(extracted_ep);
 
-  myfile.flush();
-  std::cout << myfile.rdbuf() << std::endl;
+    std::string code = synthesize_code_aux(ep.get_root(), code_generator);
 
-  myfile.close();
+    myfile << code;
+    myfile.flush();
+    std::cout << std::endl;
 
-  CodeGenerator code_generator(Out);
+    myfile.close();
 }
 
 void synthesize(const ExecutionPlan &ep) {
