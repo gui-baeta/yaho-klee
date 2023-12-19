@@ -175,7 +175,7 @@ void synthesize_code(const ExecutionPlan &ep) {
     // Assuming the only target is TFHE-rs
     assert(TargetList.size() == 1 && TargetList[0] == TargetType::tfhe);
     code_generator.add_target(TargetList[0]);
-    ExecutionPlan extracted_ep = code_generator.extract(ep, TargetList[0]);
+    ExecutionPlan extracted_ep = code_generator.extract_at(ep, 0);
     code_generator.init_generator_state(extracted_ep);
 
     // FIXME Still throws error "[ERROR] Unknown variable with symbol packet_chunks"

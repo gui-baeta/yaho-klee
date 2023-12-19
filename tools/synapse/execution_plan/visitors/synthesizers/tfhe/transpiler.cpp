@@ -179,6 +179,26 @@ std::string Transpiler::size_to_type(bits_t size, bool is_signed) const {
   return "bytes_t";
 }
 
+/**
+ * Applies a bitmask to a given expression, retaining only the specified bits.
+ *
+ * @param expr The original expression to be masked.
+ * @param offset The number of bits to shift the expression to the right before masking.
+ * @param size The size (number of bits) of the bitmask to be applied.
+ * @return A C-style expression representing the masked result.
+ *
+ * This function constructs a masked expression by applying a bitmask to the
+ * original expression. The bitmask is created based on the provided offset
+ * and size, ensuring that only the relevant bits are retained. The resulting
+ * expression is suitable for bitwise operations or manipulation of binary data.
+ *
+ * Example:
+ * \code{.cpp}
+ * std::string originalExpr = "some_expression";
+ * std::string maskedExpr = transpiler.mask(originalExpr, 2, 4);
+ * // Result: "((uint32_t)((some_expression) >> 2) & 0xFu)"
+ * \endcode
+ */
 std::string Transpiler::mask(std::string expr, bits_t offset,
                              bits_t size) const {
   std::stringstream mask_builder;
@@ -237,6 +257,8 @@ InternalTranspiler::visitRead(const klee::ReadExpr &e) {
   auto symbol = kutil::get_symbol(eref);
   auto variable = generator.search_variable(symbol.second);
 
+  std::cout << std::endl << "Visiting a read" << std::endl;
+
   if (!variable.valid) {
     Log::err() << "Unknown variable with symbol " << symbol.second << "\n";
     exit(1);
@@ -276,6 +298,8 @@ InternalTranspiler::visitConcat(const klee::ConcatExpr &e) {
   if (kutil::is_readLSB(eref)) {
     auto symbol = kutil::get_symbol(eref);
     auto variable = generator.search_variable(symbol.second);
+
+    std::cout << std::endl << "Visiting a concat" << std::endl;
 
     if (!variable.valid) {
       Log::err() << "Unknown variable with symbol " << symbol.second << "\n";

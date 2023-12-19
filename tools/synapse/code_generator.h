@@ -124,13 +124,12 @@ public:
     target_helpers_loaded.push_back(found_it->second);
   }
 
-  ExecutionPlan extract(const ExecutionPlan &execution_plan,
-                        TargetType target) {
-    auto _target = target_helpers_bank.find(target);
-    assert(_target != target_helpers_bank.end() &&
-           "TargetType not found in target_extractors_bank of CodeGenerator");
+  ExecutionPlan extract_at(const ExecutionPlan &execution_plan,
+                        size_t target_ix) {
+    auto target_helper = this->target_helpers_loaded[target_ix];
+    auto &extractor = target_helper.extractor;
 
-    return (this->*_target->second.extractor)(execution_plan);
+    return (this->*extractor)(execution_plan);
   }
 
   void init_generator_state(const ExecutionPlan &execution_plan) {
