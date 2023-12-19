@@ -75,8 +75,9 @@ public:
 
         {TargetType::x86, target_helper_t(&CodeGenerator::x86_extractor,
                                           std::make_shared<x86Generator>())},
+
         {TargetType::tfhe, target_helper_t(&CodeGenerator::tfhe_extractor,
-                                          std::make_shared<tfheGenerator>())},
+                                      std::make_shared<tfheGenerator>())},
     };
   }
 
@@ -130,17 +131,6 @@ public:
     auto &extractor = target_helper.extractor;
 
     return (this->*extractor)(execution_plan);
-  }
-
-  void init_generator_state(const ExecutionPlan &execution_plan) {
-    for (auto helper : target_helpers_loaded) {
-      auto &generator = helper.generator;
-
-      // Cast Synthesizer to its child tfheGenerator
-//      auto tfhe_generator = std::static_pointer_cast<synapse::synthesizer::tfhe::tfheGenerator>(generator);
-//      tfhe_generator->init_state(extracted_ep);
-      generator->init_state(execution_plan);
-    }
   }
 
   void generate(const ExecutionPlan &execution_plan) {

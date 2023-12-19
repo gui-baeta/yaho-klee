@@ -6,4 +6,5 @@ AccessModifierOffset: -4
 SortIncludes: Never
 Standard: c++11
 UseTab: Never
+IndentCaseLabels: false
 ...

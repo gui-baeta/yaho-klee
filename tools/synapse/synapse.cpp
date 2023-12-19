@@ -137,9 +137,7 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
   return {winner, ss};
 }
 
-std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node, CodeGenerator code_generator) {
-  auto tfhe_generator = std::static_pointer_cast<synapse::synthesizer::tfhe::tfheGenerator>(code_generator.target_helpers_bank.find(TargetList[0])->second.generator);
-
+std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node) {
   std::string code("");
   code += std::string("(") + ep_node->get_module()->get_name() + std::string(") ");
   std::cout << code;
@@ -147,10 +145,10 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node, CodeGenera
   if (ep_node->get_module()->get_type() == synapse::Module::ModuleType::tfhe_Conditional) {
     auto conditional_module = std::static_pointer_cast<synapse::targets::tfhe::Conditional>(ep_node->get_module());
 
-    code += std::string("cond_val = ") + conditional_module->generate_code(tfhe_generator) + std::string("\n");
+    code += std::string("cond_val = ") + conditional_module->generate_code() + std::string("\n");
     std::cout << code;
     // Recursively synthesize the children of the Conditional node
-    code += std::string("c = cond_val*(") + synthesize_code_aux(ep_node->get_next()[0], code_generator) + std::string(") + (not cond_val)*(") + synthesize_code_aux(ep_node->get_next()[1], code_generator) + std::string(")\n");
+    code += std::string("c = cond_val*(") + synthesize_code_aux(ep_node->get_next()[0]) + std::string(") + (not cond_val)*(") + synthesize_code_aux(ep_node->get_next()[1]) + std::string(")\n");
     std::cout << code;
   } else if (ep_node->get_module()->get_type() == synapse::Module::ModuleType::tfhe_TernarySum) {
     auto ternary_sum_module = std::static_pointer_cast<synapse::targets::tfhe::TernarySum>(ep_node->get_module());
@@ -159,7 +157,7 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node, CodeGenera
   }
 
   if (!ep_node->get_next().empty()) {
-    code += synthesize_code_aux(ep_node->get_next()[0], code_generator);
+    code += synthesize_code_aux(ep_node->get_next()[0]);
     std::cout << code;
   }
 
@@ -176,11 +174,10 @@ void synthesize_code(const ExecutionPlan &ep) {
     assert(TargetList.size() == 1 && TargetList[0] == TargetType::tfhe);
     code_generator.add_target(TargetList[0]);
     ExecutionPlan extracted_ep = code_generator.extract_at(ep, 0);
-    code_generator.init_generator_state(extracted_ep);
 
     // FIXME Still throws error "[ERROR] Unknown variable with symbol packet_chunks"
     //  on "Conditional". packet_chunks in branch condition
-    std::string code = synthesize_code_aux(ep.get_root(), code_generator);
+    std::string code = synthesize_code_aux(extracted_ep.get_root());
 
     myfile << code;
     myfile.flush();
