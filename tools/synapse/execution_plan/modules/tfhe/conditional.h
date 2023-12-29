@@ -170,6 +170,8 @@ public:
 
         // Fallthrough to Uge since there is no signed values in TFHE
         case klee::Expr::Sge:
+            // TODO Look at https://www.zama.ai/post/releasing-tfhe-rs-v0-4-0
+            //  and see how to use signed comparisons
         // Case for handling unsigned greater-than-or-equal-to expressions.
         case klee::Expr::Uge:
             code = generate_tfhe_code(this->condition->getKid(0))
@@ -179,12 +181,12 @@ public:
 
         // Case for handling signed less-than expressions.
         case klee::Expr::Slt:
-            // FIXME I probably don't even need this. in TFHE there is no signed values
+            // FIXME (SEE ABOVE)
             break;
 
         // Case for handling signed less-than-or-equal-to expressions.
         case klee::Expr::Sle:
-            // FIXME I probably don't even need this. in TFHE there is no signed values
+            // FIXME (SEE ABOVE)
             break;
         // TODO Add more cases as needed for other condition types
         default:

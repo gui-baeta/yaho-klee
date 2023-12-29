@@ -50,6 +50,14 @@ std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr) {
     case klee::Expr::ZExt: {
         // FIXME This is a hack to avoid generating the zero extension for a
         //  casting
+        //  Only the expression inside the Zero Extension is used:
+        //    (ZExt w32
+        //  >    (Read w8
+        //  >         (w32 0)
+        //  >         packet_chunks
+        //  >    )
+        //    )
+
         code = generate_tfhe_code(expr->getKid(0));
         break;
     }

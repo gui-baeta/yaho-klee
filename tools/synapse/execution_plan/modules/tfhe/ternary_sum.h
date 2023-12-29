@@ -9,16 +9,20 @@ namespace tfhe {
 // TODO Rename this class to SumInConditionalBranch
 class TernarySum : public tfheModule {
 private:
-  std::string expression;
+  addr_t chunk_addr;
+  klee::ref<klee::Expr> original_chunk;
+  std::vector<modification_t> modifications;
 
 public:
   TernarySum()
       : tfheModule(ModuleType::tfhe_TernarySum, "TernarySum") {}
 
-  TernarySum(BDD::Node_ptr node,
-             std::string _expression)
+  TernarySum(BDD::Node_ptr node, addr_t _chunk_addr,
+                    klee::ref<klee::Expr> _original_chunk,
+                    const std::vector<modification_t> &_modifications)
       : tfheModule(ModuleType::tfhe_TernarySum, "TernarySum", node),
-        expression(_expression) {}
+        chunk_addr(_chunk_addr), original_chunk(_original_chunk),
+        modifications(_modifications) {}
 
 private:
   klee::ref<klee::Expr> get_original_chunk(const ExecutionPlan &ep,
@@ -49,21 +53,6 @@ private:
 
   processing_result_t process(const ExecutionPlan &ep,
                               BDD::Node_ptr node) override {
-    processing_result_t result;
-
-//    return result; // FIXME Just to text the generation of the Execution Plan
-
-    // Check if this is a valid return chunk
-    auto casted = BDD::cast_node<BDD::Call>(node);
-    if (!casted) {
-      return result;
-    }
-    auto call = casted->get_call();
-    if (call.function_name != BDD::symbex::FN_RETURN_CHUNK) {
-      return result;
-    }
-    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in.isNull());
 
     // TODO Check if this is a sum. If not, bail out
 
@@ -71,48 +60,53 @@ private:
 
 
     // Get previous Conditional nodes
-//    std::vector<Module_ptr> previous_conditionals =
-//        get_prev_modules(ep, {ModuleType::tfhe_Conditional});
-//
-//    // Get only the nearest previous Conditional node
-//    Module_ptr previous_conditional = previous_conditionals[0];
-//
-//    // Build the expression for this arm.
-//    auto _current_chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
-//    // Is it a concatenation?
-//    assert(_current_chunk->getKind() == klee::Expr::Kind::Concat)
-//    klee:ref<klee:Expr> left_kid = _current_chunk.getKid(0);
-//
-//    // Is it an add, between two expression?
-//    assert(left_kid->getKind() == klee::Expr::Kind::Add);
-//    klee::ref<klee::Expr> left_add_expr = left_kid.getKid(0);
-//
-//    std::string value_str = left_add_expr.toString();
-//    klee::ref<klee::Expr> right_add_expr = left_kid.getKid(1);
-//    // Is it reading a chunk?. Ex: packet_chunks[2]
-//    assert(right_add_expr->getKind() == klee::Expr::Kind::Read);
-//    // FIXME Should I cast it this way?
-//    auto read_expr = static_cast<klee::ReadExpr *>(right_add_expr);
-//    std::string index_str = read_expr.index.toString();
+    //    std::vector<Module_ptr> previous_conditionals =
+    //        get_prev_modules(ep, {ModuleType::tfhe_Conditional});
+    //
+    //    // Get only the nearest previous Conditional node
+    //    Module_ptr previous_conditional = previous_conditionals[0];
+    //
+    //    // Build the expression for this arm.
+    //    auto _current_chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
+    //    // Is it a concatenation?
+    //    assert(_current_chunk->getKind() == klee::Expr::Kind::Concat)
+    //    klee:ref<klee:Expr> left_kid = _current_chunk.getKid(0);
+    //
+    //    // Is it an add, between two expression?
+    //    assert(left_kid->getKind() == klee::Expr::Kind::Add);
+    //    klee::ref<klee::Expr> left_add_expr = left_kid.getKid(0);
+    //
+    processing_result_t result;
 
-//    auto _chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr;
-//    auto _current_chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
-//    auto _original_chunk = get_original_chunk(ep, node);
-//
-//    auto _chunk_addr = kutil::expr_addr_to_obj_addr(_chunk);
-//    auto _modifications = build_modifications(_original_chunk, _current_chunk);
+    // Check if this is a valid return chunk
+    auto casted = BDD::cast_node<BDD::Call>(node);
 
-//    // Check if the Conditional node was already visited by the other arm
-//    if (previous_conditional->already_visited) {
-//
-//    }
-//
-//    auto new_module = std::make_shared<TernarySum>(
-//        node, value_str + "c" + index_str);
-//    auto new_ep = ep.add_leaves(new_module, node->get_next());
-//
-//    result.module = new_module;
-//    result.next_eps.push_back(new_ep);
+    if (!casted) {
+      return result;
+    }
+
+    auto call = casted->get_call();
+
+    if (call.function_name != BDD::symbex::FN_RETURN_CHUNK) {
+      return result;
+    }
+
+    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in.isNull());
+
+    auto _chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr;
+    auto _current_chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
+    auto _original_chunk = get_original_chunk(ep, node);
+
+    auto _chunk_addr = kutil::expr_addr_to_obj_addr(_chunk);
+    auto _modifications = build_modifications(_original_chunk, _current_chunk);
+
+    auto new_module = std::make_shared<TernarySum>(
+        node, _chunk_addr, _original_chunk, _modifications);
+    auto new_ep = ep.add_leaves(new_module, node->get_next());
+
+    result.module = new_module;
+    result.next_eps.push_back(new_ep);
 
     return result;
   }
@@ -125,7 +119,7 @@ public:
 
   virtual Module_ptr clone() const override {
     auto cloned =
-        new TernarySum(node, this->get_expression());
+        new TernarySum(node, chunk_addr, original_chunk, modifications);
     return std::shared_ptr<Module>(cloned);
   }
 
@@ -136,25 +130,80 @@ public:
 
     auto other_cast = static_cast<const TernarySum *>(other);
 
-    if (!this->get_expression().compare(other_cast->get_expression())) {
+    if (chunk_addr != other_cast->get_chunk_addr()) {
       return false;
+    }
+
+    if (!kutil::solver_toolbox.are_exprs_always_equal(
+            original_chunk, other_cast->original_chunk)) {
+      return false;
+    }
+
+    auto other_modifications = other_cast->get_modifications();
+
+    if (modifications.size() != other_modifications.size()) {
+      return false;
+    }
+
+    for (unsigned i = 0; i < modifications.size(); i++) {
+      auto modification = modifications[i];
+      auto other_modification = other_modifications[i];
+
+      if (modification.byte != other_modification.byte) {
+        return false;
+      }
+
+      if (!kutil::solver_toolbox.are_exprs_always_equal(
+              modification.expr, other_modification.expr)) {
+        return false;
+      }
     }
 
     return true;
   }
 
-  const std::string &get_expression() const { return this->expression; }
+  const addr_t &get_chunk_addr() const { return chunk_addr; }
 
+  klee::ref<klee::Expr> get_original_chunk() const { return original_chunk; }
+
+  const std::vector<modification_t> &get_modifications() const {
+    return modifications;
+  }
+
+  std::string to_string_aux(klee::ref<klee::Expr> expr) const {
+    std::string str;
+    llvm::raw_string_ostream _s(str);
+
+    if (expr->getNumKids() > 0) {
+        _s << std::string("(");
+        for (unsigned kid_i = 0; kid_i < expr->getNumKids(); kid_i++) {
+            _s << expr->getKid(kid_i)->getKind();
+            _s << to_string_aux(expr->getKid(kid_i));
+            if (kid_i < expr->getNumKids() - 1)
+                _s << std::string(", ");
+        }
+        _s << std::string(")");
+    }
+
+    return _s.str();
+  }
+
+  // Debug representation of the operations module
   std::string to_string() const {
     std::string str;
     llvm::raw_string_ostream s(str);
-    this->get_expression();
+    s << std::string("modifications amount: ") << this->get_modifications().size() << std::string(" - ");
+    s << "< ";
+    for (auto&& _modf: this->get_modifications()) {
+        klee::ref<klee::Expr> _expr = _modf.expr;
+        // print expression kind
+        s << _expr->getKind();
+        s << this->to_string_aux(_expr);
+        if (&_modf != &this->get_modifications().back())
+            s << std::string(", ");
+    }
+    s << " >";
     return s.str();
-  }
-
-  friend std::ostream& operator<<(std::ostream& os, const TernarySum& ternary_sum) {
-    os << ternary_sum.get_expression();
-    return os;
   }
 };
 } // namespace tfhe

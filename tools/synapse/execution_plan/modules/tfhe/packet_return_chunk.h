@@ -55,6 +55,8 @@ private:
                               BDD::Node_ptr node) override {
     processing_result_t result;
 
+    return result; // FIXME Just to test the generation of the Execution Plan
+
     auto casted = BDD::cast_node<BDD::Call>(node);
 
     if (!casted) {
