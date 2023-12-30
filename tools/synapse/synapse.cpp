@@ -60,13 +60,11 @@ llvm::cl::list<TargetType> TargetList(
            clEnumValN(TargetType::x86, "x86", "x86 (DPDK C)"), clEnumValEnd),
     cat(SyNAPSE));
 
-llvm::cl::opt<std::string>
-    InputBDDFile("in", desc("Input file for BDD deserialization."),
-                 cat(SyNAPSE));
+llvm::cl::opt<std::string> InputBDDFile(
+    "in", desc("Input file for BDD deserialization."), cat(SyNAPSE));
 
-llvm::cl::opt<std::string>
-    Out("out", desc("Output directory for every generated file."),
-        cat(SyNAPSE));
+llvm::cl::opt<std::string> Out(
+    "out", desc("Output directory for every generated file."), cat(SyNAPSE));
 
 llvm::cl::opt<int> MaxReordered(
     "max-reordered",
@@ -88,86 +86,104 @@ llvm::cl::opt<int> Peek("peek",
 llvm::cl::opt<bool> Verbose("v", desc("Verbose mode."),
                             llvm::cl::ValueDisallowed, llvm::cl::init(false),
                             cat(SyNAPSE));
-} // namespace
+}  // namespace
 
 BDD::BDD build_bdd() {
-  assert((InputBDDFile.size() != 0 || InputCallPathFiles.size() != 0) &&
-         "Please provide either at least 1 call path file, or a bdd file");
+    assert((InputBDDFile.size() != 0 || InputCallPathFiles.size() != 0) &&
+           "Please provide either at least 1 call path file, or a bdd file");
 
-  if (InputBDDFile.size() > 0) {
-    return BDD::BDD(InputBDDFile);
-  }
+    if (InputBDDFile.size() > 0) {
+        return BDD::BDD(InputBDDFile);
+    }
 
-  std::vector<call_path_t *> call_paths;
+    std::vector<call_path_t *> call_paths;
 
-  for (auto file : InputCallPathFiles) {
-    std::cerr << "Loading: " << file << std::endl;
+    for (auto file : InputCallPathFiles) {
+        std::cerr << "Loading: " << file << std::endl;
 
-    call_path_t *call_path = load_call_path(file);
-    call_paths.push_back(call_path);
-  }
+        call_path_t *call_path = load_call_path(file);
+        call_paths.push_back(call_path);
+    }
 
-  return BDD::BDD(call_paths);
+    return BDD::BDD(call_paths);
 }
 
 std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
                                              BDD::node_id_t peek) {
-  SearchEngine search_engine(bdd, MaxReordered);
+    SearchEngine search_engine(bdd, MaxReordered);
 
-  for (unsigned i = 0; i != TargetList.size(); ++i) {
-    auto target = TargetList[i];
-    search_engine.add_target(target);
-  }
+    for (unsigned i = 0; i != TargetList.size(); ++i) {
+        auto target = TargetList[i];
+        search_engine.add_target(target);
+    }
 
-  Biggest biggest;
-  DFS dfs;
-  MostCompact most_compact;
-  LeastReordered least_reordered;
-  MaximizeSwitchNodes maximize_switch_nodes;
-  Gallium gallium;
+    Biggest biggest;
+    DFS dfs;
+    MostCompact most_compact;
+    LeastReordered least_reordered;
+    MaximizeSwitchNodes maximize_switch_nodes;
+    Gallium gallium;
 
-  // auto winner = search_engine.search(biggest, peek);
-  // auto winner = search_engine.search(least_reordered, peek);
-  // auto winner = search_engine.search(dfs, peek);
-  // auto winner = search_engine.search(most_compact, peek);
-  // auto winner = search_engine.search(maximize_switch_nodes, peek);
-  auto winner = search_engine.search(gallium, peek);
-  const auto &ss = search_engine.get_search_space();
+    // auto winner = search_engine.search(biggest, peek);
+    // auto winner = search_engine.search(least_reordered, peek);
+    // auto winner = search_engine.search(dfs, peek);
+    // auto winner = search_engine.search(most_compact, peek);
+    // auto winner = search_engine.search(maximize_switch_nodes, peek);
+    auto winner = search_engine.search(gallium, peek);
+    const auto &ss = search_engine.get_search_space();
 
-  return {winner, ss};
+    return {winner, ss};
 }
 
-std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node) {
-  std::string code("");
-  code += std::string("(") + ep_node->get_module()->get_name() + std::string(") ");
-//  std::cout << code;
+std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
+                                std::vector<ep_node_id_t> &visited_ep_nodes) {
+    std::string code("");
 
-  if (ep_node->get_module()->get_type() == synapse::Module::ModuleType::tfhe_Conditional) {
-    auto conditional_module = std::static_pointer_cast<synapse::targets::tfhe::Conditional>(ep_node->get_module());
+    // If the node has already been visited, return
+    if (std::find(visited_ep_nodes.begin(), visited_ep_nodes.end(),
+                  ep_node->get_id()) != visited_ep_nodes.end()) {
+        return code;
+    }
 
-    code += std::string("cond_val = ") + conditional_module->generate_code() + std::string("\n");
-//    std::cout << code;
-    // Recursively synthesize the children of the Conditional node
-    code += std::string("c = cond_val*(") + synthesize_code_aux(ep_node->get_next()[0]) + std::string(") + (not cond_val)*(") + synthesize_code_aux(ep_node->get_next()[1]) + std::string(")\n");
-//    std::cout << code;
-  } else if (ep_node->get_module()->get_type() == synapse::Module::ModuleType::tfhe_TernarySum) {
-    auto ternary_sum_module = std::static_pointer_cast<synapse::targets::tfhe::TernarySum>(ep_node->get_module());
-    code += ternary_sum_module->to_string();
-//    std::cout << code;
-  }
+    code += std::string("(") + ep_node->get_module()->get_name() +
+            std::string(") ");
 
-  if (!ep_node->get_next().empty()) {
-    code += synthesize_code_aux(ep_node->get_next()[0]);
-//    std::cout << code;
-  }
+    if (ep_node->get_module()->get_type() ==
+        synapse::Module::ModuleType::tfhe_Conditional) {
+        visited_ep_nodes.push_back(ep_node->get_id());
+        auto conditional_module =
+            std::static_pointer_cast<synapse::targets::tfhe::Conditional>(
+                ep_node->get_module());
 
-  return code;
+        code += std::string("cond_val = ") +
+                conditional_module->generate_code() + std::string("\n");
+        // Recursively synthesize the children of the Conditional node
+        code += std::string("c = cond_val*(") +
+                synthesize_code_aux(ep_node->get_next()[0], visited_ep_nodes) +
+                std::string(") + (not cond_val)*(") +
+                synthesize_code_aux(ep_node->get_next()[1], visited_ep_nodes) +
+                std::string(")\n");
+    } else if (ep_node->get_module()->get_type() ==
+               synapse::Module::ModuleType::tfhe_TernarySum) {
+        visited_ep_nodes.push_back(ep_node->get_id());
+        auto ternary_sum_module =
+            std::static_pointer_cast<synapse::targets::tfhe::TernarySum>(
+                ep_node->get_module());
+        code += ternary_sum_module->generate_code();
+    }
+
+    if (!ep_node->get_next().empty()) {
+        visited_ep_nodes.push_back(ep_node->get_id());
+        code += synthesize_code_aux(ep_node->get_next()[0], visited_ep_nodes);
+    }
+
+    return code;
 }
 
 void synthesize_code(const ExecutionPlan &ep) {
     // Create file if not exists and open it with write permission
     std::ofstream myfile;
-    myfile.open ("main.rs");
+    myfile.open("main.rs");
 
     CodeGenerator code_generator(Out);
     // Assuming the only target is TFHE-rs
@@ -175,7 +191,9 @@ void synthesize_code(const ExecutionPlan &ep) {
     code_generator.add_target(TargetList[0]);
     ExecutionPlan extracted_ep = code_generator.extract_at(ep, 0);
 
-    std::string code = synthesize_code_aux(extracted_ep.get_root());
+    std::vector<ep_node_id_t> visited_ep_nodes;
+    std::string code =
+        synthesize_code_aux(extracted_ep.get_root(), visited_ep_nodes);
     code += std::string("\n");
 
     myfile << code;
@@ -186,61 +204,61 @@ void synthesize_code(const ExecutionPlan &ep) {
 }
 
 void synthesize(const ExecutionPlan &ep) {
-  CodeGenerator code_generator(Out);
+    CodeGenerator code_generator(Out);
 
-  for (unsigned i = 0; i != TargetList.size(); ++i) {
-    auto target = TargetList[i];
-    code_generator.add_target(target);
-  }
+    for (unsigned i = 0; i != TargetList.size(); ++i) {
+        auto target = TargetList[i];
+        code_generator.add_target(target);
+    }
 
-  code_generator.generate(ep);
+    code_generator.generate(ep);
 }
 
 int main(int argc, char **argv) {
-  llvm::cl::ParseCommandLineOptions(argc, argv);
+    llvm::cl::ParseCommandLineOptions(argc, argv);
 
-  if (Verbose) {
-    Log::MINIMUM_LOG_LEVEL = Log::Level::DEBUG;
-  } else {
-    Log::MINIMUM_LOG_LEVEL = Log::Level::LOG;
-  }
+    if (Verbose) {
+        Log::MINIMUM_LOG_LEVEL = Log::Level::DEBUG;
+    } else {
+        Log::MINIMUM_LOG_LEVEL = Log::Level::LOG;
+    }
 
-  BDD::BDD bdd = build_bdd();
+    BDD::BDD bdd = build_bdd();
 
-  auto start_search = std::chrono::steady_clock::now();
-  auto search_results = search(bdd, Peek);
-  auto end_search = std::chrono::steady_clock::now();
+    auto start_search = std::chrono::steady_clock::now();
+    auto search_results = search(bdd, Peek);
+    auto end_search = std::chrono::steady_clock::now();
 
-  auto search_dt = std::chrono::duration_cast<std::chrono::seconds>(
-                       end_search - start_search)
-                       .count();
+    auto search_dt = std::chrono::duration_cast<std::chrono::seconds>(
+                         end_search - start_search)
+                         .count();
 
-  if (ShowEP) {
-    Graphviz::visualize(search_results.first);
-  }
+    if (ShowEP) {
+        Graphviz::visualize(search_results.first);
+    }
 
-  if (ShowSS) {
-    Graphviz::visualize(search_results.second);
-  }
+    if (ShowSS) {
+        Graphviz::visualize(search_results.second);
+    }
 
-  int64_t synthesis_dt = -1;
+    int64_t synthesis_dt = -1;
 
-  if (Out.size()) {
-    auto start_synthesis = std::chrono::steady_clock::now();
-    synthesize_code(search_results.first);
-//    synthesize(search_results.first);
-    auto end_synthesis = std::chrono::steady_clock::now();
+    if (Out.size()) {
+        auto start_synthesis = std::chrono::steady_clock::now();
+        synthesize_code(search_results.first);
+        //    synthesize(search_results.first);
+        auto end_synthesis = std::chrono::steady_clock::now();
 
-    synthesis_dt = std::chrono::duration_cast<std::chrono::seconds>(
-                       end_synthesis - start_synthesis)
-                       .count();
-  }
+        synthesis_dt = std::chrono::duration_cast<std::chrono::seconds>(
+                           end_synthesis - start_synthesis)
+                           .count();
+    }
 
-  Log::log() << "Search time:     " << search_dt << " sec\n";
+    Log::log() << "Search time:     " << search_dt << " sec\n";
 
-  if (synthesis_dt >= 0) {
-    Log::log() << "Generation time: " << synthesis_dt << " sec\n";
-  }
+    if (synthesis_dt >= 0) {
+        Log::log() << "Generation time: " << synthesis_dt << " sec\n";
+    }
 
-  return 0;
+    return 0;
 }

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "tfhe_module.h"
+#include "../../../tfhe_generate_code.h"
+
 
 namespace synapse {
 namespace targets {
@@ -186,6 +188,10 @@ public:
     }
 
     return _s.str();
+  }
+
+  std::string generate_code() const {
+      return generate_tfhe_code(this->get_modifications()[0].expr);
   }
 
   // Debug representation of the operations module

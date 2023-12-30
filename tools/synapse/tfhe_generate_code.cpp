@@ -15,7 +15,8 @@ std::string generate_tfhe_constant(const klee::ref<klee::Expr>& expr) {
 std::string generate_tfhe_read(const klee::ref<klee::Expr>& expr) {
     klee::ReadExpr* read_expr = dyn_cast<klee::ReadExpr>(expr);
     std::string array_name = read_expr->updates.root->name;
-    klee::ConstantExpr* const_expr = dyn_cast<klee::ConstantExpr>(read_expr->index);
+    klee::ConstantExpr* const_expr =
+        dyn_cast<klee::ConstantExpr>(read_expr->index);
 
     std::string index;
     const_expr->toString(index);
@@ -40,11 +41,12 @@ std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr) {
         break;
     }
     case klee::Expr::Concat: {
-        // TODO
+        code = generate_tfhe_code(expr->getKid(0)) + std::string(" + ") + generate_tfhe_code(expr->getKid(1));
         break;
     }
     case klee::Expr::Extract: {
-        // TODO
+        // This is done since the Extract doesn't do anything in particular
+        code = generate_tfhe_code(expr->getKid(0));
         break;
     }
     case klee::Expr::ZExt: {
@@ -62,11 +64,13 @@ std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr) {
         break;
     }
     case klee::Expr::SExt: {
-        // TODO
+        // FIXME This is a hack to avoid generating the signed extension for a
+        //  casting. The Signed Extension adds 1s to the left of the rightmost 1
+        code = generate_tfhe_code(expr->getKid(0));
         break;
     }
     case klee::Expr::Add: {
-        // TODO
+        code = generate_tfhe_code(expr->getKid(0)) + std::string(" + ") + generate_tfhe_code(expr->getKid(1));
         break;
     }
     case klee::Expr::Sub: {
