@@ -145,8 +145,8 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
         return code;
     }
 
-    code += std::string("(") + ep_node->get_module()->get_name() +
-            std::string(") ");
+//    code += std::string("(") + ep_node->get_module()->get_name() +
+//            std::string(") ");
 
     if (ep_node->get_module()->get_type() ==
         synapse::Module::ModuleType::tfhe_Conditional) {

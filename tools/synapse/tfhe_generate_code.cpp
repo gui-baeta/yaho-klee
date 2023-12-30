@@ -41,7 +41,7 @@ std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr) {
         break;
     }
     case klee::Expr::Concat: {
-        code = generate_tfhe_code(expr->getKid(0)) + std::string(" + ") + generate_tfhe_code(expr->getKid(1));
+        code = generate_tfhe_code(expr->getKid(0)) + std::string(", ") + generate_tfhe_code(expr->getKid(1));
         break;
     }
     case klee::Expr::Extract: {
