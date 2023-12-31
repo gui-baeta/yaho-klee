@@ -18,10 +18,10 @@ std::string generate_tfhe_read(const klee::ref<klee::Expr>& expr) {
     klee::ConstantExpr* const_expr =
         dyn_cast<klee::ConstantExpr>(read_expr->index);
 
-    std::string index;
-    const_expr->toString(index);
-
-    return array_name + std::string("[") + index + std::string("]");
+    std::string index_as_str;
+    const_expr->toString(index_as_str);
+    return std::string("val") + index_as_str;
+//    return array_name + std::string("[") + index + std::string("]");
 }
 
 std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr) {

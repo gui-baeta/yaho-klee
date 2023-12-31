@@ -172,6 +172,10 @@ public:
         return modifications;
     }
 
+    std::string generate_code() const {
+        return generate_tfhe_code(this->get_modifications()[0].expr);
+    }
+
     std::string to_string_aux(klee::ref<klee::Expr> expr) const {
         std::string str;
         llvm::raw_string_ostream _s(str);
@@ -187,12 +191,6 @@ public:
         }
 
         return _s.str();
-    }
-
-    std::string generate_code() const {
-        std::cout << "Modifications width: "
-                  << this->get_modifications()[0].expr->getWidth() << std::endl;
-        return generate_tfhe_code(this->get_modifications()[0].expr);
     }
 
     // Debug representation of the operations module

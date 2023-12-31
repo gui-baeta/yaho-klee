@@ -136,7 +136,7 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
 }
 
 std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
-                                std::vector<ep_node_id_t> &visited_ep_nodes) {
+                                std::vector<ep_node_id_t> &visited_ep_nodes, int &chunk_values_amount) {
     std::string code("");
 
     // If the node has already been visited, return
@@ -157,11 +157,19 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
 
         code += std::string("cond_val = ") +
                 conditional_module->generate_code() + std::string("\n");
+
+        // FIXME This code is hardcoded for flattened if-else statements
+        for (int n_value = chunk_values_amount - 1; n_value >= 0; --n_value) {
+            code += std::string("val") + std::to_string(n_value);
+            if (n_value > 0) {
+                code += std::string(", ");
+            }
+        }
         // Recursively synthesize the children of the Conditional node
-        code += std::string("c = cond_val*(") +
-                synthesize_code_aux(ep_node->get_next()[0], visited_ep_nodes) +
+        code += std::string(" = cond_val*(") +
+                synthesize_code_aux(ep_node->get_next()[0], visited_ep_nodes, chunk_values_amount) +
                 std::string(") + (not cond_val)*(") +
-                synthesize_code_aux(ep_node->get_next()[1], visited_ep_nodes) +
+                synthesize_code_aux(ep_node->get_next()[1], visited_ep_nodes, chunk_values_amount) +
                 std::string(")\n");
     } else if (ep_node->get_module()->get_type() ==
                synapse::Module::ModuleType::tfhe_TernarySum) {
@@ -170,11 +178,25 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
             std::static_pointer_cast<synapse::targets::tfhe::TernarySum>(
                 ep_node->get_module());
         code += ternary_sum_module->generate_code();
+    } else if (ep_node->get_module()->get_type() == synapse::Module::tfhe_PacketBorrowNextChunk) {
+        visited_ep_nodes.push_back(ep_node->get_id());
+        auto packet_borrow_next_chunk_module =
+            std::static_pointer_cast<synapse::targets::tfhe::PacketBorrowNextChunk>(
+                ep_node->get_module());
+//        code += packet_borrow_next_chunk_module->generate_code();
+        chunk_values_amount = packet_borrow_next_chunk_module->get_chunk_values_amount();
+    } else if (ep_node->get_module()->get_type() == synapse::Module::tfhe_PacketBorrowNextSecret) {
+        visited_ep_nodes.push_back(ep_node->get_id());
+        auto packet_borrow_next_secret_module =
+            std::static_pointer_cast<synapse::targets::tfhe::PacketBorrowNextSecret>(
+                ep_node->get_module());
+//        code += packet_borrow_next_secret_module->generate_code();
+        chunk_values_amount = packet_borrow_next_secret_module->get_chunk_values_amount();
     }
 
     if (!ep_node->get_next().empty()) {
         visited_ep_nodes.push_back(ep_node->get_id());
-        code += synthesize_code_aux(ep_node->get_next()[0], visited_ep_nodes);
+        code += synthesize_code_aux(ep_node->get_next()[0], visited_ep_nodes, chunk_values_amount);
     }
 
     return code;
@@ -192,8 +214,9 @@ void synthesize_code(const ExecutionPlan &ep) {
     ExecutionPlan extracted_ep = code_generator.extract_at(ep, 0);
 
     std::vector<ep_node_id_t> visited_ep_nodes;
+    int chunk_values_amount = 0;
     std::string code =
-        synthesize_code_aux(extracted_ep.get_root(), visited_ep_nodes);
+        synthesize_code_aux(extracted_ep.get_root(), visited_ep_nodes, chunk_values_amount);
     code += std::string("\n");
 
     myfile << code;
