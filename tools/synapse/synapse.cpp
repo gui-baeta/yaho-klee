@@ -135,68 +135,78 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
     return {winner, ss};
 }
 
+struct gen_data_t {
+    int chunk_values_amount;
+    std::vector<ep_node_id_t> visited_ep_nodes;
+    std::vector<std::string> conditions;
+    std::vector<std::pair<std::string, std::string>> ternary_ops;
+};
+
 std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
-                                std::vector<ep_node_id_t> &visited_ep_nodes, int &chunk_values_amount) {
+                                gen_data_t &gen_data) {
     std::string code("");
 
     // If the node has already been visited, return
-    if (std::find(visited_ep_nodes.begin(), visited_ep_nodes.end(),
-                  ep_node->get_id()) != visited_ep_nodes.end()) {
+    if (std::find(gen_data.visited_ep_nodes.begin(),
+                  gen_data.visited_ep_nodes.end(),
+                  ep_node->get_id()) != gen_data.visited_ep_nodes.end()) {
         return code;
     }
 
-//    code += std::string("(") + ep_node->get_module()->get_name() +
-//            std::string(") ");
-
     if (ep_node->get_module()->get_type() ==
         synapse::Module::ModuleType::tfhe_Conditional) {
-        visited_ep_nodes.push_back(ep_node->get_id());
+        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
         auto conditional_module =
             std::static_pointer_cast<synapse::targets::tfhe::Conditional>(
                 ep_node->get_module());
 
-        code += std::string("cond_val = ") +
-                conditional_module->generate_code() + std::string("\n");
+        gen_data.conditions.push_back(
+            std::string("cond_val") + std::to_string(gen_data.conditions.size()) +
+            std::string(" = ") + conditional_module->generate_code() +
+            std::string("\n"));
 
         // FIXME This code is hardcoded for flattened if-else statements
-        for (int n_value = chunk_values_amount - 1; n_value >= 0; --n_value) {
-            code += std::string("val") + std::to_string(n_value);
-            if (n_value > 0) {
-                code += std::string(", ");
-            }
-        }
+//        for (int n_value = gen_data.chunk_values_amount - 1; n_value >= 0;
+//             --n_value) {
+//            code += std::string("val") + std::to_string(n_value);
+//            if (n_value > 0) {
+//                code += std::string(", ");
+//            }
+//        }
         // Recursively synthesize the children of the Conditional node
-        code += std::string(" = cond_val*(") +
-                synthesize_code_aux(ep_node->get_next()[0], visited_ep_nodes, chunk_values_amount) +
-                std::string(") + (not cond_val)*(") +
-                synthesize_code_aux(ep_node->get_next()[1], visited_ep_nodes, chunk_values_amount) +
-                std::string(")\n");
+        gen_data.ternary_ops.push_back(
+            {synthesize_code_aux(ep_node->get_next()[0], gen_data),
+            synthesize_code_aux(ep_node->get_next()[1], gen_data)});
     } else if (ep_node->get_module()->get_type() ==
                synapse::Module::ModuleType::tfhe_TernarySum) {
-        visited_ep_nodes.push_back(ep_node->get_id());
+        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
         auto ternary_sum_module =
             std::static_pointer_cast<synapse::targets::tfhe::TernarySum>(
                 ep_node->get_module());
         code += ternary_sum_module->generate_code();
-    } else if (ep_node->get_module()->get_type() == synapse::Module::tfhe_PacketBorrowNextChunk) {
-        visited_ep_nodes.push_back(ep_node->get_id());
-        auto packet_borrow_next_chunk_module =
-            std::static_pointer_cast<synapse::targets::tfhe::PacketBorrowNextChunk>(
-                ep_node->get_module());
-//        code += packet_borrow_next_chunk_module->generate_code();
-        chunk_values_amount = packet_borrow_next_chunk_module->get_chunk_values_amount();
-    } else if (ep_node->get_module()->get_type() == synapse::Module::tfhe_PacketBorrowNextSecret) {
-        visited_ep_nodes.push_back(ep_node->get_id());
-        auto packet_borrow_next_secret_module =
-            std::static_pointer_cast<synapse::targets::tfhe::PacketBorrowNextSecret>(
-                ep_node->get_module());
-//        code += packet_borrow_next_secret_module->generate_code();
-        chunk_values_amount = packet_borrow_next_secret_module->get_chunk_values_amount();
+    } else if (ep_node->get_module()->get_type() ==
+               synapse::Module::tfhe_PacketBorrowNextChunk) {
+        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+        auto packet_borrow_next_chunk_module = std::static_pointer_cast<
+            synapse::targets::tfhe::PacketBorrowNextChunk>(
+            ep_node->get_module());
+        //        code += packet_borrow_next_chunk_module->generate_code();
+        gen_data.chunk_values_amount =
+            packet_borrow_next_chunk_module->get_chunk_values_amount();
+    } else if (ep_node->get_module()->get_type() ==
+               synapse::Module::tfhe_PacketBorrowNextSecret) {
+        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+        auto packet_borrow_next_secret_module = std::static_pointer_cast<
+            synapse::targets::tfhe::PacketBorrowNextSecret>(
+            ep_node->get_module());
+        //        code += packet_borrow_next_secret_module->generate_code();
+        gen_data.chunk_values_amount =
+            packet_borrow_next_secret_module->get_chunk_values_amount();
     }
 
     if (!ep_node->get_next().empty()) {
-        visited_ep_nodes.push_back(ep_node->get_id());
-        code += synthesize_code_aux(ep_node->get_next()[0], visited_ep_nodes, chunk_values_amount);
+        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
     }
 
     return code;
@@ -213,10 +223,9 @@ void synthesize_code(const ExecutionPlan &ep) {
     code_generator.add_target(TargetList[0]);
     ExecutionPlan extracted_ep = code_generator.extract_at(ep, 0);
 
-    std::vector<ep_node_id_t> visited_ep_nodes;
-    int chunk_values_amount = 0;
-    std::string code =
-        synthesize_code_aux(extracted_ep.get_root(), visited_ep_nodes, chunk_values_amount);
+    gen_data_t gen_data;
+    gen_data.chunk_values_amount = 0;
+    std::string code = synthesize_code_aux(extracted_ep.get_root(), gen_data);
     code += std::string("\n");
 
     myfile << code;
