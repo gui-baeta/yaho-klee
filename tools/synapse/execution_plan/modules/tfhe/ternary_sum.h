@@ -54,29 +54,6 @@ private:
 
     processing_result_t process(const ExecutionPlan &ep,
                                 BDD::Node_ptr node) override {
-        // TODO Check if this is a sum. If not, bail out
-
-        // TODO Check if the previous node is a Conditional node. If not, bail
-        // out
-
-        // Get previous Conditional nodes
-        //    std::vector<Module_ptr> previous_conditionals =
-        //        get_prev_modules(ep, {ModuleType::tfhe_Conditional});
-        //
-        //    // Get only the nearest previous Conditional node
-        //    Module_ptr previous_conditional = previous_conditionals[0];
-        //
-        //    // Build the expression for this arm.
-        //    auto _current_chunk =
-        //    call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
-        //    // Is it a concatenation?
-        //    assert(_current_chunk->getKind() == klee::Expr::Kind::Concat)
-        //    klee:ref<klee:Expr> left_kid = _current_chunk.getKid(0);
-        //
-        //    // Is it an add, between two expression?
-        //    assert(left_kid->getKind() == klee::Expr::Kind::Add);
-        //    klee::ref<klee::Expr> left_add_expr = left_kid.getKid(0);
-        //
         processing_result_t result;
 
         // Check if this is a valid return chunk
@@ -91,6 +68,28 @@ private:
         if (call.function_name != BDD::symbex::FN_RETURN_CHUNK) {
             return result;
         }
+
+        // TODO Check if the previous node is a Conditional node. If not, bail out
+        auto ep_node = ep.get_active_leaf();
+        auto prev_ep_node = ep_node->get_prev(); // Get only the nearest previous Conditional node
+        if (!((ep_node->get_module()->get_type() ==
+            ModuleType::tfhe_Else || ep_node->get_module()->get_type() == ModuleType::tfhe_Then)
+            && prev_ep_node->get_module()->get_type() == ModuleType::tfhe_Conditional)) {
+            return result;
+        }
+
+        // TODO Check if this is a sum. If not, bail out
+
+        //    // Build the expression for this arm.
+        //    auto _current_chunk =
+        //    call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
+        //    // Is it a concatenation?
+        //    assert(_current_chunk->getKind() == klee::Expr::Kind::Concat)
+        //    klee:ref<klee:Expr> left_kid = _current_chunk.getKid(0);
+        //
+        //    // Is it an add, between two expression?
+        //    assert(left_kid->getKind() == klee::Expr::Kind::Add);
+        //    klee::ref<klee::Expr> left_add_expr = left_kid.getKid(0);
 
         assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr.isNull());
         assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in.isNull());

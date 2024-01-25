@@ -35,6 +35,8 @@ public:
   void set_next(ExecutionPlanNode_ptr _next);
   void set_prev(ExecutionPlanNode_ptr _prev);
 
+  BDD::Node_ptr get_node() const;
+
   const Module_ptr &get_module() const;
   void replace_module(Module_ptr _module);
 
@@ -55,6 +57,8 @@ public:
 
   static ExecutionPlanNode_ptr build(Module_ptr _module);
   static ExecutionPlanNode_ptr build(const ExecutionPlanNode *ep_node);
+
+  ExecutionPlanNode_ptr find_node_by_module_type(int type) const;
 
 private:
   static ep_node_id_t counter;

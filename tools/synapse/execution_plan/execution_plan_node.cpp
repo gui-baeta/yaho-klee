@@ -89,5 +89,23 @@ ExecutionPlanNode::build(const ExecutionPlanNode *ep_node) {
   ExecutionPlanNode *epn = new ExecutionPlanNode(ep_node);
   return std::shared_ptr<ExecutionPlanNode>(epn);
 }
+BDD::Node_ptr ExecutionPlanNode::get_node() const { return this->module->get_node(); }
+
+/// Find the node of the given module type that is any child of this one
+ExecutionPlanNode_ptr ExecutionPlanNode::find_node_by_module_type(
+    int type) const {
+    if (this->module->get_type() == type) {
+        return std::shared_ptr<ExecutionPlanNode>(const_cast<ExecutionPlanNode *>(this));
+    }
+
+    for (auto &branch : this->next) {
+        auto result = branch->find_node_by_module_type(type);
+        if (result) {
+            return result;
+        }
+    }
+
+    return nullptr;
+}
 
 } // namespace synapse

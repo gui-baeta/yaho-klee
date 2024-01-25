@@ -144,6 +144,8 @@ public:
         // Get the condition type
         klee::Expr::Kind conditionType = this->condition->getKind();
 
+        std::cout << this->to_string() << std::endl;
+
         // Initialize the Rust code string as the unit
         std::string code = "()";
 
@@ -151,42 +153,58 @@ public:
         switch (conditionType) {
         // Case for handling equality expressions.
         case klee::Expr::Eq:
-            // TODO Generate Equality
+            code = generate_tfhe_code(this->condition->getKid(1))
+                   + std::string(".eq(")
+                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
             break;
         // Case for handling unsigned less-than expressions.
         case klee::Expr::Ult:
-            // TODO Generate Unsigned Less-Than
+            code = generate_tfhe_code(this->condition->getKid(1))
+                   + std::string(".ge(")
+                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
             break;
 
         // Case for handling unsigned less-than-or-equal-to expressions.
         case klee::Expr::Ule:
-            // TODO Generate Unsigned Less-Than-Or-Equal-To
+            code = generate_tfhe_code(this->condition->getKid(1))
+                   + std::string(".gt(")
+                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
             break;
 
         // Case for handling unsigned greater-than expressions.
         case klee::Expr::Ugt:
-            // TODO Generate Unsigned Greater-Than
+            code = generate_tfhe_code(this->condition->getKid(1))
+                   + std::string(".le(")
+                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
             break;
 
         // Fallthrough to Uge since there is no signed values in TFHE
         case klee::Expr::Sge:
             // TODO Look at https://www.zama.ai/post/releasing-tfhe-rs-v0-4-0
             //  and see how to use signed comparisons
+            code = generate_tfhe_code(this->condition->getKid(1))
+                   + std::string(".lt(")
+                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
+            break;
         // Case for handling unsigned greater-than-or-equal-to expressions.
         case klee::Expr::Uge:
-            code = generate_tfhe_code(this->condition->getKid(0))
-                   + std::string(" >= ")
-                   + generate_tfhe_code(this->condition->getKid(1));
+            code = generate_tfhe_code(this->condition->getKid(1))
+                   + std::string(".lt(")
+                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
             break;
 
         // Case for handling signed less-than expressions.
         case klee::Expr::Slt:
-            // FIXME (SEE ABOVE)
+            code = generate_tfhe_code(this->condition->getKid(1))
+                   + std::string(".ge(")
+                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
             break;
 
         // Case for handling signed less-than-or-equal-to expressions.
         case klee::Expr::Sle:
-            // FIXME (SEE ABOVE)
+            code = generate_tfhe_code(this->condition->getKid(1))
+                   + std::string(".gt(")
+                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
             break;
         // TODO Add more cases as needed for other condition types
         default:

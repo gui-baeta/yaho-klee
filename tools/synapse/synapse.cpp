@@ -139,12 +139,14 @@ struct gen_data_t {
     int chunk_values_amount;
     std::vector<ep_node_id_t> visited_ep_nodes;
     std::vector<std::string> conditions;
-    std::vector<std::pair<std::string, std::string>> ternary_ops;
 };
 
 std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
                                 gen_data_t &gen_data) {
     std::string code("");
+
+    std::cout << "Module Type: " << ep_node->get_module()->get_name()
+              << std::endl;
 
     // If the node has already been visited, return
     if (std::find(gen_data.visited_ep_nodes.begin(),
@@ -154,29 +156,62 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
     }
 
     if (ep_node->get_module()->get_type() ==
-        synapse::Module::ModuleType::tfhe_Conditional) {
+        synapse::Module::ModuleType::tfhe_CurrentTime) {
+        // Do nothing
+        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
+
+    } else if (ep_node->get_module()->get_type() ==
+               synapse::Module::ModuleType::tfhe_Conditional) {
         gen_data.visited_ep_nodes.push_back(ep_node->get_id());
         auto conditional_module =
             std::static_pointer_cast<synapse::targets::tfhe::Conditional>(
                 ep_node->get_module());
 
+        size_t this_cond_val_num = gen_data.conditions.size();
+        bool first_conditional_in_conditional_nesting = this_cond_val_num == 0;
+
         gen_data.conditions.push_back(
-            std::string("cond_val") + std::to_string(gen_data.conditions.size()) +
-            std::string(" = ") + conditional_module->generate_code() +
-            std::string("\n"));
+            std::string("let cond_val") +
+            std::to_string(gen_data.conditions.size()) + std::string(" = ") +
+            conditional_module->generate_code() + std::string("\n"));
 
         // FIXME This code is hardcoded for flattened if-else statements
-//        for (int n_value = gen_data.chunk_values_amount - 1; n_value >= 0;
-//             --n_value) {
-//            code += std::string("val") + std::to_string(n_value);
-//            if (n_value > 0) {
-//                code += std::string(", ");
-//            }
-//        }
-        // Recursively synthesize the children of the Conditional node
-        gen_data.ternary_ops.push_back(
-            {synthesize_code_aux(ep_node->get_next()[0], gen_data),
-            synthesize_code_aux(ep_node->get_next()[1], gen_data)});
+        // FIXME I don't like this solution, but for now it will do
+        //  Better solution -> See if this node is a child of a Else or Then
+        //  node?
+        if (first_conditional_in_conditional_nesting) {
+            code += std::string("let result = cond_val");
+            //            for (int n_value = gen_data.chunk_values_amount - 1;
+            //            n_value >= 0;
+            //                 --n_value) {
+            //                code += std::string("val") +
+            //                std::to_string(n_value); if (n_value > 0) {
+            //                    code += std::string(", ");
+            //                }
+            //            }
+            //            code += std::string(" = ");
+        } else {
+            code += std::string("&cond_val");
+        }
+        code += std::to_string(this_cond_val_num) + std::string(".mul_distr(") +
+                synthesize_code_aux(ep_node->get_next()[0], gen_data) +
+                std::string(").add(cond_val") +
+                std::to_string(this_cond_val_num) +
+                std::string(".map(not).mul_distr(") +
+                synthesize_code_aux(ep_node->get_next()[1], gen_data) +
+                std::string("))\n");
+
+    } else if (ep_node->get_module()->get_type() ==
+               synapse::Module::ModuleType::tfhe_Then) {
+        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
+
+    } else if (ep_node->get_module()->get_type() ==
+               synapse::Module::ModuleType::tfhe_Else) {
+        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
+
     } else if (ep_node->get_module()->get_type() ==
                synapse::Module::ModuleType::tfhe_TernarySum) {
         gen_data.visited_ep_nodes.push_back(ep_node->get_id());
@@ -184,6 +219,7 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
             std::static_pointer_cast<synapse::targets::tfhe::TernarySum>(
                 ep_node->get_module());
         code += ternary_sum_module->generate_code();
+
     } else if (ep_node->get_module()->get_type() ==
                synapse::Module::tfhe_PacketBorrowNextChunk) {
         gen_data.visited_ep_nodes.push_back(ep_node->get_id());
@@ -193,6 +229,9 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
         //        code += packet_borrow_next_chunk_module->generate_code();
         gen_data.chunk_values_amount =
             packet_borrow_next_chunk_module->get_chunk_values_amount();
+
+        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
+
     } else if (ep_node->get_module()->get_type() ==
                synapse::Module::tfhe_PacketBorrowNextSecret) {
         gen_data.visited_ep_nodes.push_back(ep_node->get_id());
@@ -202,14 +241,112 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
         //        code += packet_borrow_next_secret_module->generate_code();
         gen_data.chunk_values_amount =
             packet_borrow_next_secret_module->get_chunk_values_amount();
-    }
 
-    if (!ep_node->get_next().empty()) {
-        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
         code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
     }
 
+    // FIXME This is probably too generic and I want to control each node that
+    // is to be processed
+    //    if (!ep_node->get_next().empty()) {
+    //        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+    //        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
+    //    }
+
     return code;
+}
+
+class value_conditions_t {
+public:
+    ep_node_id_t condition_id;
+
+    // These represent possible subsequent conditions for the value
+    value_conditions_t *_then;
+    value_conditions_t *_else;
+
+    // Modification of value given by the packet return chunk - end nodes of
+    // some arbitrary branching
+    klee::ref<klee::Expr> modification_on_then;
+    klee::ref<klee::Expr> modification_on_else;
+
+    // For the vector constructor
+    value_conditions_t() {
+        this->condition_id = 0;
+        this->modification_on_then = nullptr;
+        this->modification_on_else = nullptr;
+        this->_then = nullptr;
+        this->_else = nullptr;
+    }
+
+    value_conditions_t(ep_node_id_t _condition_id) {
+        this->condition_id = _condition_id;
+        this->modification_on_then = nullptr;
+        this->modification_on_else = nullptr;
+        this->_then = nullptr;
+        this->_else = nullptr;
+    }
+
+    bool has_changes() {
+        return this->modification_on_then != 0 ||
+               this->modification_on_else != 0;
+    }
+
+    bool has_change_on_then() { return this->modification_on_then != 0; }
+
+    bool has_change_on_else() { return this->modification_on_else != 0; }
+
+    ~value_conditions_t() {
+        if (_then) {
+            delete this->_then;
+        }
+        if (_else) {
+            delete this->_else;
+        }
+    }
+};
+
+// Preprocess the Execution Plan to extract metadata
+value_conditions_t preprocess(const ExecutionPlanNode_ptr &ep_node) {
+    // For each value,
+    // create a value_conditions_t object,
+    auto packet_borrow_secret_node = ep_node->find_node_by_module_type(
+        synapse::Module::ModuleType::tfhe_PacketBorrowNextSecret);
+    auto packet_borrow_secret_module = std::static_pointer_cast<
+        synapse::targets::tfhe::PacketBorrowNextSecret>(packet_borrow_secret_node->get_module());
+
+    int chunk_values_amount =
+        packet_borrow_secret_module->get_chunk_values_amount();
+    std::vector<value_conditions_t> value_conditions(
+        chunk_values_amount);
+
+    // and go through each condition for all of these objects.
+    // -- Need to Save the node id of each condition --
+    //      Go through the nodes on each branching
+    //      (from right to left in the tree) and save the
+    //      modifications on the right and left
+    //      if they are modifications...
+    //      If on the right is not a condition and the modification doesn't
+    //      translate to any real modification, then the value is not modified,
+    //      and we should maintain that right modification value as null in the
+    //      metadata object; The same but for the left; If on the right is a
+    //      condition, then we should go to the condition and repeat the process
+    //      until we reach the end of the condition tree; The same but for the
+    //      left;
+
+    // At the end we should have a metadata object with all the modifications
+    // for each value
+    // We need to simplify the value_conditions_t object and
+    // remove any unnecessary condition nodes
+    // that don't modify the value.
+
+    // After this simplification,
+    // we can start producing the code for each value.
+    // For this,
+    // we need to go through the object
+    // and get the condition klee Expression through the node id.
+    //      Write the code for this condition
+    //      and continue down the tree of this object to write the
+    //      full chain of conditions
+    //      and finally writing the actual modification.
 }
 
 void synthesize_code(const ExecutionPlan &ep) {
@@ -223,10 +360,18 @@ void synthesize_code(const ExecutionPlan &ep) {
     code_generator.add_target(TargetList[0]);
     ExecutionPlan extracted_ep = code_generator.extract_at(ep, 0);
 
+    value_conditions_t value_conditions = preprocess(extracted_ep.get_root());
+
     gen_data_t gen_data;
     gen_data.chunk_values_amount = 0;
     std::string code = synthesize_code_aux(extracted_ep.get_root(), gen_data);
     code += std::string("\n");
+
+    for (std::string condition : gen_data.conditions) {
+        myfile << condition;
+    }
+
+    myfile << code;
 
     myfile << code;
     myfile.flush();

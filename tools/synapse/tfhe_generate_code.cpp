@@ -20,7 +20,7 @@ std::string generate_tfhe_read(const klee::ref<klee::Expr>& expr) {
 
     std::string index_as_str;
     const_expr->toString(index_as_str);
-    return std::string("val") + index_as_str;
+    return std::string("val") + index_as_str + std::string(".clone()");
 //    return array_name + std::string("[") + index + std::string("]");
 }
 
@@ -129,3 +129,7 @@ std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr) {
 
     return code;
 }
+
+//std::string generate_tfhe_code(const ExecutionPlanNode_ptr &ep_node) {
+//    return std::string("Unimplemented");
+//}

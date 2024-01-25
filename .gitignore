@@ -44,3 +44,6 @@ input/
 CMakePresets.json
 .clangd
 nf.c
+
+main.rs
+vgcore.*
