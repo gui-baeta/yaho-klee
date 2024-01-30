@@ -107,5 +107,6 @@ ExecutionPlanNode_ptr ExecutionPlanNode::find_node_by_module_type(
 
     return nullptr;
 }
+int ExecutionPlanNode::get_module_type() const { return this->get_module()->get_type(); }
 
 } // namespace synapse

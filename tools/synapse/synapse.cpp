@@ -255,70 +255,131 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
     return code;
 }
 
-class value_conditions_t {
-public:
-    ep_node_id_t condition_id;
+/// \brief Preprocess the Execution Plan to extract metadata. Starts at the
+/// first Branching node. \param ep_node \param value_conditions
+void preprocess_aux(const ExecutionPlanNode_ptr &ep_node,
+                    value_conditions_t &value_conditions) {
+    std::cout << ep_node->get_module()->get_name() << std::endl;
 
-    // These represent possible subsequent conditions for the value
-    value_conditions_t *_then;
-    value_conditions_t *_else;
-
-    // Modification of value given by the packet return chunk - end nodes of
-    // some arbitrary branching
-    klee::ref<klee::Expr> modification_on_then;
-    klee::ref<klee::Expr> modification_on_else;
-
-    // For the vector constructor
-    value_conditions_t() {
-        this->condition_id = 0;
-        this->modification_on_then = nullptr;
-        this->modification_on_else = nullptr;
-        this->_then = nullptr;
-        this->_else = nullptr;
-    }
-
-    value_conditions_t(ep_node_id_t _condition_id) {
-        this->condition_id = _condition_id;
-        this->modification_on_then = nullptr;
-        this->modification_on_else = nullptr;
-        this->_then = nullptr;
-        this->_else = nullptr;
-    }
-
-    bool has_changes() {
-        return this->modification_on_then != 0 ||
-               this->modification_on_else != 0;
-    }
-
-    bool has_change_on_then() { return this->modification_on_then != 0; }
-
-    bool has_change_on_else() { return this->modification_on_else != 0; }
-
-    ~value_conditions_t() {
-        if (_then) {
-            delete this->_then;
+    if (ep_node->get_module_type() == synapse::Module::tfhe_Conditional) {
+        // Then EP node
+        if (value_conditions.get_then_branch() == nullptr) {
+            value_conditions.get_else_branch() =
+                std::make_shared<value_conditions_t>(value_conditions_t());
+        } else {
+            std::cout << "(Then conditional arm on preprocessing) ERROR: This "
+                         "should be null..."
+                      << std::endl;
         }
-        if (_else) {
-            delete this->_else;
+        preprocess_aux(ep_node->get_next()[0],
+                       *(value_conditions.get_then_branch()));
+
+        // Else EP node
+        if (value_conditions.get_else_branch() == nullptr) {
+            value_conditions.get_else_branch() =
+                std::make_shared<value_conditions_t>(value_conditions_t());
+        } else {
+            std::cout << "(Else conditional arm on preprocessing) ERROR: This "
+                         "should be null..."
+                      << std::endl;
         }
+        preprocess_aux(ep_node->get_next()[1],
+                       *(value_conditions.get_else_branch()));
+
+        // Then EP node is just a wrapper around one of the two branch arms
+    } else if (ep_node->get_module_type() == synapse::Module::tfhe_Then) {
+        preprocess_aux(ep_node->get_next()[0], value_conditions);
+
+        // Else EP node is just a wrapper around one of the two branch arms
+    } else if (ep_node->get_module_type() == synapse::Module::tfhe_Else) {
+        preprocess_aux(ep_node->get_next()[0], value_conditions);
+
+        // Modification EP node
+    } else if (ep_node->get_module_type() == synapse::Module::tfhe_TernarySum) {
+        auto ternary_sum_module =
+            std::static_pointer_cast<synapse::targets::tfhe::TernarySum>(
+                ep_node->get_module());
+
+        // TODO Should call here some kind of method that sees if there are
+        //  actual modifications on this specific value
+        std::cout << ternary_sum_module->generate_code() << std::endl;
     }
-};
+
+    if (ep_node->get_module()->get_type() == synapse::Module::tfhe_Drop) {
+        std::cout << "Found the end/drop" << std::endl;
+        return;
+    }
+}
 
 // Preprocess the Execution Plan to extract metadata
-value_conditions_t preprocess(const ExecutionPlanNode_ptr &ep_node) {
+std::vector<value_conditions_t> preprocess(
+    const ExecutionPlanNode_ptr &ep_node) {
     // For each value,
     // create a value_conditions_t object,
     auto packet_borrow_secret_node = ep_node->find_node_by_module_type(
         synapse::Module::ModuleType::tfhe_PacketBorrowNextSecret);
     auto packet_borrow_secret_module = std::static_pointer_cast<
-        synapse::targets::tfhe::PacketBorrowNextSecret>(packet_borrow_secret_node->get_module());
+        synapse::targets::tfhe::PacketBorrowNextSecret>(
+        packet_borrow_secret_node->get_module());
 
     int chunk_values_amount =
         packet_borrow_secret_module->get_chunk_values_amount();
-    std::vector<value_conditions_t> value_conditions(
-        chunk_values_amount);
 
-    // and go through each condition for all of these objects.
+    std::vector<value_conditions_t> value_conditions(chunk_values_amount);
+
+    std::cout << "Chunk Values Amount: " << chunk_values_amount << std::endl;
+    // TODO start by first figuring out how to see if the value is modified or
+    // not for this return chunk leaf.
+    //  I'm saying this because for a case like: ((1 + packet_chunks[2])) ++
+    //  (packet_chunks) The first and second value is not modified, but the
+    //  third is. So we need to figure out how to see this. Does the
+    //  "modifications", by being a vector, imply this??
+    //                                            Meaning, the vector elements
+    //                                            and their indexes will
+    //                                             tell me if this value is
+    //                                             modified or not?
+    preprocess_aux(packet_borrow_secret_node->get_next()[0],
+                   value_conditions[0]);
+
+    // and go through each condition for all of these objects/values.
+    for (int n_value = 0; n_value < chunk_values_amount; ++n_value) {
+        // For each condition,
+        //      if it is a condition node,
+        //          then go through the nodes on each branching
+        //          (from right to left in the tree) and save the
+        //          modifications on the right and left
+        //          if they are modifications...
+        //          If on the right is not a condition and the modification
+        //          doesn't translate to any real modification, then the value
+        //          is not modified, and we should maintain that right
+        //          modification value as null in the metadata object; The same
+        //          but for the left; If on the right is a condition, then we
+        //          should go to the condition and repeat the process until we
+        //          reach the end of the condition tree; The same but for the
+        //          left;
+        //      else if it is a modification node,
+        //          then save the modification on the right and left
+        //          if they are modifications...
+        //          If on the right is not a condition and the modification
+        //          doesn't translate to any real modification, then the value
+        //          is not modified, and we should maintain that right
+        //          modification value as null in the metadata object; The same
+        //          but for the left; If on the right is a condition, then we
+        //          should go to the condition and repeat the process until we
+        //          reach the end of the condition tree; The same but for the
+        //          left;
+        //      else if it is a return node,
+        //          then save the modification on the right and left
+        //          if they are modifications...
+        //          If on the right is not a condition and the modification
+        //          doesn't translate to any real modification, then the value
+        //          is not modified, and we should maintain that right
+        //          modification value as null in the metadata object; The same
+        //          but for the left; If on the right is a condition, then we
+        //          should go to the condition and repeat the process until we
+        //          reach the end of the condition tree; The same but for the
+        //          left;
+    }
     // -- Need to Save the node id of each condition --
     //      Go through the nodes on each branching
     //      (from right to left in the tree) and save the
@@ -347,6 +408,8 @@ value_conditions_t preprocess(const ExecutionPlanNode_ptr &ep_node) {
     //      and continue down the tree of this object to write the
     //      full chain of conditions
     //      and finally writing the actual modification.
+
+    return value_conditions;
 }
 
 void synthesize_code(const ExecutionPlan &ep) {
@@ -360,11 +423,13 @@ void synthesize_code(const ExecutionPlan &ep) {
     code_generator.add_target(TargetList[0]);
     ExecutionPlan extracted_ep = code_generator.extract_at(ep, 0);
 
-    value_conditions_t value_conditions = preprocess(extracted_ep.get_root());
+    std::vector<value_conditions_t> value_conditions =
+        preprocess(extracted_ep.get_root());
 
     gen_data_t gen_data;
     gen_data.chunk_values_amount = 0;
-    std::string code = synthesize_code_aux(extracted_ep.get_root(), gen_data);
+    std::string code;
+    //    code = synthesize_code_aux(extracted_ep.get_root(), gen_data);
     code += std::string("\n");
 
     for (std::string condition : gen_data.conditions) {

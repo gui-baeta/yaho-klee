@@ -1,11 +1,16 @@
 #pragma once
 
+
 #include "call-paths-to-bdd.h"
 #include "meta.h"
 #include "target.h"
 
+#include <klee/Constraints.h>
+
 #include <unordered_map>
 #include <unordered_set>
+#include <memory>
+#include <vector>
 
 namespace synapse {
 
@@ -137,5 +142,47 @@ private:
 };
 
 bool operator==(const ExecutionPlan &lhs, const ExecutionPlan &rhs);
+
+
+class value_conditions_t {
+public:
+    uint64_t condition_id = 0;
+
+    // These represent possible subsequent conditions for the value
+    std::shared_ptr<value_conditions_t> then_branch = nullptr;
+    std::shared_ptr<value_conditions_t> else_branch = nullptr;
+
+    // Modification of value given by the packet return chunk - end nodes of
+    // some arbitrary branching
+    klee::ref<klee::Expr> modification_on_then = nullptr;
+    klee::ref<klee::Expr> modification_on_else = nullptr;
+
+    // For the vector constructor
+    value_conditions_t() {}
+
+    value_conditions_t(uint64_t _condition_id) {
+        this->condition_id = _condition_id;
+    }
+
+    bool has_changes() {
+        return this->modification_on_then != 0 ||
+               this->modification_on_else != 0;
+    }
+
+    bool has_change_on_then() { return this->modification_on_then != 0; }
+
+    bool has_change_on_else() { return this->modification_on_else != 0; }
+
+    std::shared_ptr<value_conditions_t> get_then_branch() {
+        return this->then_branch;
+    }
+
+    std::shared_ptr<value_conditions_t> get_else_branch() {
+        return this->else_branch;
+    }
+
+    ~value_conditions_t() {
+    }
+};
 
 } // namespace synapse

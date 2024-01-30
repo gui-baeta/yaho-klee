@@ -60,6 +60,8 @@ public:
 
   ExecutionPlanNode_ptr find_node_by_module_type(int type) const;
 
+  int get_module_type() const;
+
 private:
   static ep_node_id_t counter;
 };

@@ -205,7 +205,7 @@ public:
             s << _expr->getKind();
             s << this->to_string_aux(_expr);
             if (&_modf != &this->get_modifications().back())
-                s << std::string(", ");
+                s << std::string(",_");
         }
         s << " >";
         return s.str();
