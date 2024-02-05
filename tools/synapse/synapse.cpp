@@ -258,7 +258,7 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
 /// \brief Preprocess the Execution Plan to extract metadata. Starts at the
 /// first Branching node. \param ep_node \param value_conditions
 void preprocess_aux(const ExecutionPlanNode_ptr &ep_node,
-                    value_conditions_t &value_conditions) {
+                    value_conditions_t &value_conditions, int value) {
     std::cout << ep_node->get_module()->get_name() << std::endl;
 
     if (ep_node->get_module_type() == synapse::Module::tfhe_Conditional) {
@@ -267,32 +267,32 @@ void preprocess_aux(const ExecutionPlanNode_ptr &ep_node,
             value_conditions.get_else_branch() =
                 std::make_shared<value_conditions_t>(value_conditions_t());
         } else {
-            std::cout << "(Then conditional arm on preprocessing) ERROR: This "
+            std::cout << "(value_conditions Then arm on conditional node preprocessing) ERROR: This "
                          "should be null..."
                       << std::endl;
         }
-        preprocess_aux(ep_node->get_next()[0],
-                       *(value_conditions.get_then_branch()));
+//        preprocess_aux(ep_node->get_next()[0],
+//                       *(value_conditions.get_then_branch()), value);
 
         // Else EP node
         if (value_conditions.get_else_branch() == nullptr) {
             value_conditions.get_else_branch() =
                 std::make_shared<value_conditions_t>(value_conditions_t());
         } else {
-            std::cout << "(Else conditional arm on preprocessing) ERROR: This "
+            std::cout << "(value_conditions Else arm on conditional node preprocessing) ERROR: This "
                          "should be null..."
                       << std::endl;
         }
         preprocess_aux(ep_node->get_next()[1],
-                       *(value_conditions.get_else_branch()));
+                       *(value_conditions.get_else_branch()), value);
 
         // Then EP node is just a wrapper around one of the two branch arms
     } else if (ep_node->get_module_type() == synapse::Module::tfhe_Then) {
-        preprocess_aux(ep_node->get_next()[0], value_conditions);
+        preprocess_aux(ep_node->get_next()[0], value_conditions, value);
 
         // Else EP node is just a wrapper around one of the two branch arms
     } else if (ep_node->get_module_type() == synapse::Module::tfhe_Else) {
-        preprocess_aux(ep_node->get_next()[0], value_conditions);
+        preprocess_aux(ep_node->get_next()[0], value_conditions, value);
 
         // Modification EP node
     } else if (ep_node->get_module_type() == synapse::Module::tfhe_TernarySum) {
@@ -302,7 +302,9 @@ void preprocess_aux(const ExecutionPlanNode_ptr &ep_node,
 
         // TODO Should call here some kind of method that sees if there are
         //  actual modifications on this specific value
-        std::cout << ternary_sum_module->generate_code() << std::endl;
+        value_conditions.modification =
+            ternary_sum_module->get_modification_of(value);
+//        std::cout << ternary_sum_module->generate_code() << std::endl;
     }
 
     if (ep_node->get_module()->get_type() == synapse::Module::tfhe_Drop) {
@@ -338,48 +340,48 @@ std::vector<value_conditions_t> preprocess(
     //                                            and their indexes will
     //                                             tell me if this value is
     //                                             modified or not?
-    preprocess_aux(packet_borrow_secret_node->get_next()[0],
-                   value_conditions[0]);
+    for (int n_value = 0; n_value < chunk_values_amount; ++n_value) {
+        preprocess_aux(packet_borrow_secret_node->get_next()[0],
+                       value_conditions[0], n_value);
+    }
 
     // and go through each condition for all of these objects/values.
-    for (int n_value = 0; n_value < chunk_values_amount; ++n_value) {
-        // For each condition,
-        //      if it is a condition node,
-        //          then go through the nodes on each branching
-        //          (from right to left in the tree) and save the
-        //          modifications on the right and left
-        //          if they are modifications...
-        //          If on the right is not a condition and the modification
-        //          doesn't translate to any real modification, then the value
-        //          is not modified, and we should maintain that right
-        //          modification value as null in the metadata object; The same
-        //          but for the left; If on the right is a condition, then we
-        //          should go to the condition and repeat the process until we
-        //          reach the end of the condition tree; The same but for the
-        //          left;
-        //      else if it is a modification node,
-        //          then save the modification on the right and left
-        //          if they are modifications...
-        //          If on the right is not a condition and the modification
-        //          doesn't translate to any real modification, then the value
-        //          is not modified, and we should maintain that right
-        //          modification value as null in the metadata object; The same
-        //          but for the left; If on the right is a condition, then we
-        //          should go to the condition and repeat the process until we
-        //          reach the end of the condition tree; The same but for the
-        //          left;
-        //      else if it is a return node,
-        //          then save the modification on the right and left
-        //          if they are modifications...
-        //          If on the right is not a condition and the modification
-        //          doesn't translate to any real modification, then the value
-        //          is not modified, and we should maintain that right
-        //          modification value as null in the metadata object; The same
-        //          but for the left; If on the right is a condition, then we
-        //          should go to the condition and repeat the process until we
-        //          reach the end of the condition tree; The same but for the
-        //          left;
-    }
+    // For each condition,
+    //      if it is a condition node,
+    //          then go through the nodes on each branching
+    //          (from right to left in the tree) and save the
+    //          modifications on the right and left
+    //          if they are modifications...
+    //          If on the right is not a condition and the modification
+    //          doesn't translate to any real modification, then the value
+    //          is not modified, and we should maintain that right
+    //          modification value as null in the metadata object; The same
+    //          but for the left; If on the right is a condition, then we
+    //          should go to the condition and repeat the process until we
+    //          reach the end of the condition tree; The same but for the
+    //          left;
+    //      else if it is a modification node,
+    //          then save the modification on the right and left
+    //          if they are modifications...
+    //          If on the right is not a condition and the modification
+    //          doesn't translate to any real modification, then the value
+    //          is not modified, and we should maintain that right
+    //          modification value as null in the metadata object; The same
+    //          but for the left; If on the right is a condition, then we
+    //          should go to the condition and repeat the process until we
+    //          reach the end of the condition tree; The same but for the
+    //          left;
+    //      else if it is a return node,
+    //          then save the modification on the right and left
+    //          if they are modifications...
+    //          If on the right is not a condition and the modification
+    //          doesn't translate to any real modification, then the value
+    //          is not modified, and we should maintain that right
+    //          modification value as null in the metadata object; The same
+    //          but for the left; If on the right is a condition, then we
+    //          should go to the condition and repeat the process until we
+    //          reach the end of the condition tree; The same but for the
+    //          left;
     // -- Need to Save the node id of each condition --
     //      Go through the nodes on each branching
     //      (from right to left in the tree) and save the

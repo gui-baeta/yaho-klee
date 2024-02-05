@@ -154,8 +154,7 @@ public:
 
     // Modification of value given by the packet return chunk - end nodes of
     // some arbitrary branching
-    klee::ref<klee::Expr> modification_on_then = nullptr;
-    klee::ref<klee::Expr> modification_on_else = nullptr;
+    klee::ref<klee::Expr> modification = nullptr;
 
     // For the vector constructor
     value_conditions_t() {}
@@ -165,13 +164,8 @@ public:
     }
 
     bool has_changes() {
-        return this->modification_on_then != 0 ||
-               this->modification_on_else != 0;
+        return this->modification != 0;
     }
-
-    bool has_change_on_then() { return this->modification_on_then != 0; }
-
-    bool has_change_on_else() { return this->modification_on_else != 0; }
 
     std::shared_ptr<value_conditions_t> get_then_branch() {
         return this->then_branch;

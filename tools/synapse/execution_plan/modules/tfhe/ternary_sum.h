@@ -69,12 +69,16 @@ private:
             return result;
         }
 
-        // TODO Check if the previous node is a Conditional node. If not, bail out
+        // TODO Check if the previous node is a Conditional node. If not, bail
+        // out
         auto ep_node = ep.get_active_leaf();
-        auto prev_ep_node = ep_node->get_prev(); // Get only the nearest previous Conditional node
-        if (!((ep_node->get_module()->get_type() ==
-            ModuleType::tfhe_Else || ep_node->get_module()->get_type() == ModuleType::tfhe_Then)
-            && prev_ep_node->get_module()->get_type() == ModuleType::tfhe_Conditional)) {
+        auto prev_ep_node =
+            ep_node
+                ->get_prev();  // Get only the nearest previous Conditional node
+        if (!((ep_node->get_module()->get_type() == ModuleType::tfhe_Else ||
+               ep_node->get_module()->get_type() == ModuleType::tfhe_Then) &&
+              prev_ep_node->get_module()->get_type() ==
+                  ModuleType::tfhe_Conditional)) {
             return result;
         }
 
@@ -171,8 +175,135 @@ public:
         return modifications;
     }
 
+    /// Helper function that organises the given modifications in rising order.
+    /// It searches recursively DFS like, from left to right, for a Read
+    /// Expression.
+    ///     The given modification expression is assigned to the same index as
+    ///     the ReadExpr's index value.
+    void process_modifications(
+        klee::ref<klee::Expr> &expr,
+        std::vector<klee::ref<klee::Expr>> &modifications_per_value) const {
+        if (expr->getKind() == klee::Expr::Kind::Read) {
+            klee::ConstantExpr *constExpr =
+                dyn_cast<klee::ConstantExpr>(expr->getKid(0));
+
+            // Get the index of the value being read by the Read Expression
+            unsigned index = constExpr->getZExtValue();
+
+            // Use the index to assign the current modification expression to
+            // the vector
+            modifications_per_value.at(index) = expr;
+        } else {
+            // Recursively search for a Read expression with priority on the
+            // left child
+            // FIXME I think this works everytime by accident!
+            //  The left child is always the one that is first checked.
+            //  Let's say we have "a = b + c".
+            //      This a value will be expressed in the form of:
+            //      "a + (b + c)".
+            //      So, even in this case, the index to be fetched will be a's
+            //      index!
+            for (unsigned i = 0; i < expr->getNumKids(); ++i) {
+                klee::ref<klee::Expr> kid = expr->getKid(i);
+                if (!kid.isNull()) {
+                    process_modifications(kid, modifications_per_value);
+                }
+            }
+        }
+    }
+
+    // Recursive function to search for the specified pattern
+    void collect_modification_exprs(
+        const klee::ref<klee::Expr> &expr,
+        std::vector<klee::ref<klee::Expr>> &modifications) const {
+        switch (expr->getKind()) {
+        case klee::Expr::Kind::Extract:
+            // Check if this is the initial Extract wrapper,
+            // and start going down the Expression tree
+            // TODO Is this enough??
+            if (expr->getKid(0)->getKind() == klee::Expr::Kind::Concat) {
+                collect_modification_exprs(expr->getKid(0), modifications);
+                return;
+            }
+            // Check if the Extract has a child arithmetic expression
+            // Modifications are wrapped by x2 Extract's, so we need to take
+            // that into account
+            if (expr->getKid(0)->getKind() == klee::Expr::Kind::Extract) {
+                auto inner_extract = expr->getKid(0);
+                /* TODO Add more arithmetic operations as needed */
+                if (inner_extract->getKid(0)->getKind() ==
+                        klee::Expr::Kind::Add ||
+                    inner_extract->getKid(0)->getKind() == klee::Expr::Kind::Sub) {
+                    modifications.push_back(inner_extract->getKid(0));
+                }
+            }
+            break;
+        case klee::Expr::Kind::Concat:
+            // Check if the left, or right, child of Concat is a Read (value
+            // with no modification)
+            if (expr->getKid(0)->getKind() == klee::Expr::Kind::Read ||
+                expr->getKid(1)->getKind() == klee::Expr::Kind::Read) {
+                // If so, return null
+                return;
+            }
+
+            // Dive into the left side of Concat
+            collect_modification_exprs(expr->getKid(0), modifications);
+
+            // Dive into the right side of Concat
+            collect_modification_exprs(expr->getKid(1), modifications);
+
+            break;
+        // Add more cases for other expression kinds as needed
+        default:
+            break;
+        }
+
+        return;  // Finished pattern matching
+    }
+
+    // Extracts the modifications expression for each value, based on the
+    // expressions in the modifications vector
+    std::vector<klee::ref<klee::Expr>> get_modifications_exprs() const {
+        int n_values = this->get_chunk_values_amount();
+
+        // A klee:ref starts as null. (See its default constructor)
+        std::vector<klee::ref<klee::Expr>> modifications_per_value(n_values);
+
+        std::cout << "modifications to_string: " << this->to_string()
+                  << std::endl;
+
+        // If there are no modifications in this module, assign null to each
+        // value
+        // FIXME Does this work?
+        if (this->get_modifications().empty()) {
+            return modifications_per_value;
+        }
+
+        klee::ref<klee::Expr> first_bit_modifications_expr =
+            this->get_modifications()[0].expr;
+
+        // Collect all modification expressions
+        std::vector<klee::ref<klee::Expr>> all_modifications;
+        // Search for modifications to the values in the expression
+        collect_modification_exprs(first_bit_modifications_expr,
+                                   all_modifications);
+
+        // Organize the modifications in expected values sequence [0th, 1st,
+        // 2nd, ...]
+        for (auto &expr : all_modifications) {
+            process_modifications(expr, modifications_per_value);
+        }
+
+        return modifications_per_value;
+    }
+
     std::string generate_code() const {
         return generate_tfhe_code(this->get_modifications()[0].expr);
+    }
+
+    klee::ref<klee::Expr> get_modification_of(int n_value) const {
+        return this->get_modifications_exprs()[n_value];
     }
 
     std::string to_string_aux(klee::ref<klee::Expr> expr) const {
@@ -210,6 +341,13 @@ public:
         s << " >";
         return s.str();
     }
+
+    unsigned get_chunk_width() const {
+        return this->original_chunk->getWidth();
+    }
+
+    // FIXME This is specific to 8-bit chunks
+    int get_chunk_values_amount() const { return this->get_chunk_width() / 8; }
 };
 }  // namespace tfhe
 }  // namespace targets
