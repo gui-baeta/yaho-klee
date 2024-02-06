@@ -181,32 +181,34 @@ public:
     ///     The given modification expression is assigned to the same index as
     ///     the ReadExpr's index value.
     void process_modifications(
-        klee::ref<klee::Expr> &expr,
-        std::vector<klee::ref<klee::Expr>> &modifications_per_value) const {
-        if (expr->getKind() == klee::Expr::Kind::Read) {
+        klee::ref<klee::Expr> &modification_expr,
+        std::vector<klee::ref<klee::Expr>> &modifications_per_value,
+        klee::ref<klee::Expr> &_this_expr) const {
+        if (_this_expr->getKind() == klee::Expr::Kind::Read) {
             klee::ConstantExpr *constExpr =
-                dyn_cast<klee::ConstantExpr>(expr->getKid(0));
+                dyn_cast<klee::ConstantExpr>(_this_expr->getKid(0));
 
             // Get the index of the value being read by the Read Expression
             unsigned index = constExpr->getZExtValue();
 
             // Use the index to assign the current modification expression to
             // the vector
-            modifications_per_value.at(index) = expr;
+            modifications_per_value.at(index) = modification_expr;
         } else {
             // Recursively search for a Read expression with priority on the
             // left child
-            // FIXME I think this works everytime by accident!
+            // FIXME I think this works by accident!
             //  The left child is always the one that is first checked.
             //  Let's say we have "a = b + c".
             //      This a value will be expressed in the form of:
             //      "a + (b + c)".
             //      So, even in this case, the index to be fetched will be a's
             //      index!
-            for (unsigned i = 0; i < expr->getNumKids(); ++i) {
-                klee::ref<klee::Expr> kid = expr->getKid(i);
+            for (unsigned i = 0; i < _this_expr->getNumKids(); ++i) {
+                klee::ref<klee::Expr> kid = _this_expr->getKid(i);
                 if (!kid.isNull()) {
-                    process_modifications(kid, modifications_per_value);
+                    process_modifications(modification_expr,
+                                          modifications_per_value, kid);
                 }
             }
         }
@@ -233,7 +235,8 @@ public:
                 /* TODO Add more arithmetic operations as needed */
                 if (inner_extract->getKid(0)->getKind() ==
                         klee::Expr::Kind::Add ||
-                    inner_extract->getKid(0)->getKind() == klee::Expr::Kind::Sub) {
+                    inner_extract->getKid(0)->getKind() ==
+                        klee::Expr::Kind::Sub) {
                     modifications.push_back(inner_extract->getKid(0));
                 }
             }
@@ -262,6 +265,8 @@ public:
         return;  // Finished pattern matching
     }
 
+    // FIXME Is this API to get all modifications necessary?
+    //  After optimizing obtaining only the needed modification, will we need this?
     // Extracts the modifications expression for each value, based on the
     // expressions in the modifications vector
     std::vector<klee::ref<klee::Expr>> get_modifications_exprs() const {
@@ -292,7 +297,20 @@ public:
         // Organize the modifications in expected values sequence [0th, 1st,
         // 2nd, ...]
         for (auto &expr : all_modifications) {
-            process_modifications(expr, modifications_per_value);
+            process_modifications(expr, modifications_per_value, expr);
+        }
+
+        std::cout << "Done processing and filling modifications_per_value"
+                  << std::endl;
+        std::cout << "modifications_per_value size: "
+                  << modifications_per_value.size() << std::endl;
+        for (auto &_expr : modifications_per_value) {
+            if (_expr.isNull()) {
+                std::cout << "null" << std::endl;
+                continue;
+            }
+            std::cout << "modifications_per_value: "
+                      << generate_tfhe_code(_expr) << std::endl;
         }
 
         return modifications_per_value;
@@ -302,8 +320,11 @@ public:
         return generate_tfhe_code(this->get_modifications()[0].expr);
     }
 
+    // TODO We should optimize this API. It should only look for the modification of the n-th value
+    //  instead of getting all modifications.
     klee::ref<klee::Expr> get_modification_of(int n_value) const {
-        return this->get_modifications_exprs()[n_value];
+        auto modifications_exprs = this->get_modifications_exprs();
+        return modifications_exprs.at(n_value);
     }
 
     std::string to_string_aux(klee::ref<klee::Expr> expr) const {

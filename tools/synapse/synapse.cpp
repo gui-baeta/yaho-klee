@@ -246,7 +246,7 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
     }
 
     // FIXME This is probably too generic and I want to control each node that
-    // is to be processed
+    //  is to be processed
     //    if (!ep_node->get_next().empty()) {
     //        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
     //        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
@@ -264,22 +264,22 @@ void preprocess_aux(const ExecutionPlanNode_ptr &ep_node,
     if (ep_node->get_module_type() == synapse::Module::tfhe_Conditional) {
         // Then EP node
         if (value_conditions.get_then_branch() == nullptr) {
-            value_conditions.get_else_branch() =
-                std::make_shared<value_conditions_t>(value_conditions_t());
+            value_conditions.set_then_branch(value_conditions_t());
         } else {
-            std::cout << "(value_conditions Then arm on conditional node preprocessing) ERROR: This "
+            std::cout << "(value_conditions Then arm on conditional node "
+                         "preprocessing) ERROR: This "
                          "should be null..."
                       << std::endl;
         }
-//        preprocess_aux(ep_node->get_next()[0],
-//                       *(value_conditions.get_then_branch()), value);
+        preprocess_aux(ep_node->get_next()[0],
+                       *(value_conditions.get_then_branch()), value);
 
         // Else EP node
         if (value_conditions.get_else_branch() == nullptr) {
-            value_conditions.get_else_branch() =
-                std::make_shared<value_conditions_t>(value_conditions_t());
+            value_conditions.set_else_branch(value_conditions_t());
         } else {
-            std::cout << "(value_conditions Else arm on conditional node preprocessing) ERROR: This "
+            std::cout << "(value_conditions Else arm on conditional node "
+                         "preprocessing) ERROR: This "
                          "should be null..."
                       << std::endl;
         }
@@ -304,7 +304,8 @@ void preprocess_aux(const ExecutionPlanNode_ptr &ep_node,
         //  actual modifications on this specific value
         value_conditions.modification =
             ternary_sum_module->get_modification_of(value);
-//        std::cout << ternary_sum_module->generate_code() << std::endl;
+        std::cout << "After getting modification.... Modification: "
+                  << generate_tfhe_code(value_conditions.modification) << std::endl;
     }
 
     if (ep_node->get_module()->get_type() == synapse::Module::tfhe_Drop) {
@@ -342,70 +343,20 @@ std::vector<value_conditions_t> preprocess(
     //                                             modified or not?
     for (int n_value = 0; n_value < chunk_values_amount; ++n_value) {
         preprocess_aux(packet_borrow_secret_node->get_next()[0],
-                       value_conditions[0], n_value);
+                       value_conditions[n_value], n_value);
     }
 
-    // and go through each condition for all of these objects/values.
-    // For each condition,
-    //      if it is a condition node,
-    //          then go through the nodes on each branching
-    //          (from right to left in the tree) and save the
-    //          modifications on the right and left
-    //          if they are modifications...
-    //          If on the right is not a condition and the modification
-    //          doesn't translate to any real modification, then the value
-    //          is not modified, and we should maintain that right
-    //          modification value as null in the metadata object; The same
-    //          but for the left; If on the right is a condition, then we
-    //          should go to the condition and repeat the process until we
-    //          reach the end of the condition tree; The same but for the
-    //          left;
-    //      else if it is a modification node,
-    //          then save the modification on the right and left
-    //          if they are modifications...
-    //          If on the right is not a condition and the modification
-    //          doesn't translate to any real modification, then the value
-    //          is not modified, and we should maintain that right
-    //          modification value as null in the metadata object; The same
-    //          but for the left; If on the right is a condition, then we
-    //          should go to the condition and repeat the process until we
-    //          reach the end of the condition tree; The same but for the
-    //          left;
-    //      else if it is a return node,
-    //          then save the modification on the right and left
-    //          if they are modifications...
-    //          If on the right is not a condition and the modification
-    //          doesn't translate to any real modification, then the value
-    //          is not modified, and we should maintain that right
-    //          modification value as null in the metadata object; The same
-    //          but for the left; If on the right is a condition, then we
-    //          should go to the condition and repeat the process until we
-    //          reach the end of the condition tree; The same but for the
-    //          left;
-    // -- Need to Save the node id of each condition --
-    //      Go through the nodes on each branching
-    //      (from right to left in the tree) and save the
-    //      modifications on the right and left
-    //      if they are modifications...
-    //      If on the right is not a condition and the modification doesn't
-    //      translate to any real modification, then the value is not modified,
-    //      and we should maintain that right modification value as null in the
-    //      metadata object; The same but for the left; If on the right is a
-    //      condition, then we should go to the condition and repeat the process
-    //      until we reach the end of the condition tree; The same but for the
-    //      left;
+    // TODO At the end we should have a metadata object with all the modifications
+    //  for each value
+    //  We need to simplify the value_conditions_t object and
+    //  remove any unnecessary condition nodes
+    //  that don't modify the value.
 
-    // At the end we should have a metadata object with all the modifications
-    // for each value
-    // We need to simplify the value_conditions_t object and
-    // remove any unnecessary condition nodes
-    // that don't modify the value.
-
-    // After this simplification,
-    // we can start producing the code for each value.
-    // For this,
-    // we need to go through the object
-    // and get the condition klee Expression through the node id.
+    // TODO After this simplification,
+    //  we can start producing the code for each value.
+    //  For this,
+    //  we need to go through the object
+    //  and get the condition klee Expression through the node id.
     //      Write the code for this condition
     //      and continue down the tree of this object to write the
     //      full chain of conditions

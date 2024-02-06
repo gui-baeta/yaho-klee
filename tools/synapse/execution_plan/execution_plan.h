@@ -171,8 +171,16 @@ public:
         return this->then_branch;
     }
 
+    void set_then_branch(value_conditions_t value) {
+        this->then_branch = std::make_shared<value_conditions_t>(value);
+    }
+
     std::shared_ptr<value_conditions_t> get_else_branch() {
         return this->else_branch;
+    }
+
+    void set_else_branch(value_conditions_t value) {
+        this->else_branch = std::make_shared<value_conditions_t>(value);
     }
 
     ~value_conditions_t() {

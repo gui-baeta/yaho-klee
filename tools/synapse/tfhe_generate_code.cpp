@@ -1,9 +1,24 @@
 #include <string>
+#include <iostream>
 
 #include "klee/util/Ref.h"
 #include "klee/Expr.h"
 
 // Code generation helper functions
+
+std::string expr_as_string(const klee::ref<klee::Expr>& expr) {
+    std::string str;
+    llvm::raw_string_ostream _s(str);
+    expr->print(_s);
+    return _s.str();
+}
+
+std::string expr_kind_string(const klee::ref<klee::Expr>& expr) {
+    std::string str;
+    llvm::raw_string_ostream _s(str);
+    expr->printKind(_s, expr->getKind());
+    return _s.str();
+}
 
 std::string generate_tfhe_constant(const klee::ref<klee::Expr>& expr) {
     klee::ConstantExpr* const_expr = dyn_cast<klee::ConstantExpr>(expr);
@@ -26,6 +41,10 @@ std::string generate_tfhe_read(const klee::ref<klee::Expr>& expr) {
 
 std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr) {
     std::string code = "()";
+
+    if (expr.isNull()) {
+        return std::string();
+    }
 
     switch (expr->getKind()) {
     case klee::Expr::Constant: {
