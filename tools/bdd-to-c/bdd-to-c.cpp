@@ -119,7 +119,7 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target) {
       auto else_node = build_ast(ast, on_false_bdd.get(), target);
       ast.pop();
 
-      auto cond_node = transpile(&ast, cond);
+      auto cond_node = transpile(&ast, cond, true);
 
       auto on_true_term = on_true_bdd ? on_true_bdd->get_terminating_node_ids()
                                       : std::vector<uint64_t>();
@@ -228,8 +228,7 @@ void build_ast(AST &ast, const BDD::BDD &bdd, TargetOption target) {
   switch (target) {
   case CALL_PATH_HITTER: {
     auto u64 = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT64_T);
-    auto call_path_hit_counter_type =
-        Array::build(u64, code_paths);
+    auto call_path_hit_counter_type = Array::build(u64, code_paths);
     auto call_path_hit_counter =
         Variable::build("call_path_hit_counter", call_path_hit_counter_type);
     ast.push_to_state(call_path_hit_counter);
@@ -304,8 +303,7 @@ void build_ast(AST &ast, const BDD::BDD &bdd, TargetOption target) {
     auto void_ptr_ret = Pointer::build(void_ret);
 
     auto u64 = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT64_T);
-    auto call_path_hit_counter_type =
-        Array::build(u64, code_paths);
+    auto call_path_hit_counter_type = Array::build(u64, code_paths);
     auto u32 = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT32_T);
 
     for (unsigned i = 0; i < code_paths; i++) {
@@ -328,8 +326,8 @@ void build_ast(AST &ast, const BDD::BDD &bdd, TargetOption target) {
         Variable::build("call_path_hit_counter_ptr", u64_ptr);
     auto call_path_hit_counter_sz =
         Variable::build("call_path_hit_counter_sz", u32);
-    auto call_paths_sz = Constant::build(PrimitiveType::PrimitiveKind::UINT32_T,
-                                         code_paths);
+    auto call_paths_sz =
+        Constant::build(PrimitiveType::PrimitiveKind::UINT32_T, code_paths);
 
     auto call_path_hit_counter_ptr_val =
         Assignment::build(call_path_hit_counter_ptr, call_path_hit_counter);

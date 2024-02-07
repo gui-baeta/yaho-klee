@@ -91,7 +91,7 @@ klee::ref<klee::Expr> fix_key_klee_expr(klee::ref<klee::Expr> key) {
 
   for (auto i = 0; i < 6; i++) {
     auto index = kutil::solver_toolbox.exprBuilder->Constant(current_index + i,
-                                                           klee::Expr::Int32);
+                                                             klee::Expr::Int32);
     auto offset = kutil::solver_toolbox.exprBuilder->Read(ul, index);
 
     if (!concat.isNull()) {
@@ -767,8 +767,8 @@ Node_ptr AST::init_state_node_from_call(const BDD::Call *bdd_call,
     }
 
     for (const auto &ev : call.extra_vars) {
-      std::cerr << ev.first << " : " << kutil::expr_to_string(ev.second.first) << " | "
-                << kutil::expr_to_string(ev.second.second) << "\n";
+      std::cerr << ev.first << " : " << kutil::expr_to_string(ev.second.first)
+                << " | " << kutil::expr_to_string(ev.second.second) << "\n";
     }
 
     std::cerr << "Not implemented:\n";
@@ -837,8 +837,8 @@ const BDD::Call *find_vector_return_with_obj(const BDD::Node *root,
     }
 
     auto this_obj = call.args["vector"].expr;
-    auto extracted =
-        kutil::solver_toolbox.exprBuilder->Extract(this_obj, 0, obj->getWidth());
+    auto extracted = kutil::solver_toolbox.exprBuilder->Extract(
+        this_obj, 0, obj->getWidth());
     auto eq = kutil::solver_toolbox.are_exprs_always_equal(obj, extracted);
 
     if (eq) {
@@ -923,8 +923,9 @@ void AST::dec_pkt_offset() {
   pkt_buffer_offset.top().pop();
 }
 
-std::vector<BDD::Node_ptr> 
-get_prev_functions(BDD::Node_ptr start, std::string function_name, std::unordered_set<std::string> stop_nodes) {
+std::vector<BDD::Node_ptr>
+get_prev_functions(BDD::Node_ptr start, std::string function_name,
+                   std::unordered_set<std::string> stop_nodes) {
   std::vector<BDD::Node_ptr> return_nodes;
 
   bool loop = true;
@@ -949,8 +950,7 @@ get_prev_functions(BDD::Node_ptr start, std::string function_name, std::unordere
     return call.function_name == function_name;
   };
 
-
-  while(loop && node != nullptr) {
+  while (loop && node != nullptr) {
     loop = !is_stop_node(node);
 
     if (is_target_node(node)) {
@@ -962,7 +962,6 @@ get_prev_functions(BDD::Node_ptr start, std::string function_name, std::unordere
 
   return return_nodes;
 }
-
 
 Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
                                            TargetOption target) {
@@ -1004,7 +1003,8 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
     std::string hdr_symbol;
     klee::ref<klee::Expr> hdr_expr;
 
-    auto prev_functions = get_prev_functions(bdd_call->get_prev(), "packet_borrow_next_chunk", {"current_time"});
+    auto prev_functions = get_prev_functions(
+        bdd_call->get_prev(), "packet_borrow_next_chunk", {"current_time"});
 
     switch (prev_functions.size()) {
     case 0: {
@@ -1104,9 +1104,11 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
 
     hdr_expr = call.extra_vars["the_chunk"].second;
 
-    auto nf_count = get_prev_functions(bdd_call->get_prev(), "current_time", {});
+    auto nf_count =
+        get_prev_functions(bdd_call->get_prev(), "current_time", {});
 
-    Variable_ptr hdr_var = Variable::build(hdr_symbol + "_" + std::to_string(nf_count.size()), hdr_type);
+    Variable_ptr hdr_var = Variable::build(
+        hdr_symbol + "_" + std::to_string(nf_count.size()), hdr_type);
     hdr_var->set_addr(hdr_addr);
 
     VariableDecl_ptr hdr_decl = VariableDecl::build(hdr_var);
@@ -1330,8 +1332,8 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
     VariableDecl_ptr value_out_decl = VariableDecl::build(value_out);
     exprs.push_back(value_out_decl);
 
-    args = std::vector<ExpressionType_ptr>{map, AddressOf::build(key),
-                                           AddressOf::build(value_out)};
+    args =
+        std::vector<ExpressionType_ptr>{map, key, AddressOf::build(value_out)};
     ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
     ret_symbol = get_symbol_label("map_has_this_key", symbols);
     ret_expr = call.ret;
@@ -1531,7 +1533,7 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
     }
   } else if (fname == "rte_ether_addr_hash") {
     assert(kutil::solver_toolbox.are_exprs_always_equal(call.args["obj"].in,
-                                                      call.args["obj"].out));
+                                                        call.args["obj"].out));
     Expr_ptr obj = transpile(this, call.args["obj"].in);
     assert(obj);
 
@@ -1727,8 +1729,8 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
     }
 
     for (const auto &ev : call.extra_vars) {
-      std::cerr << ev.first << " : " << kutil::expr_to_string(ev.second.first) << " | "
-                << kutil::expr_to_string(ev.second.second) << "\n";
+      std::cerr << ev.first << " : " << kutil::expr_to_string(ev.second.first)
+                << " | " << kutil::expr_to_string(ev.second.second) << "\n";
     }
 
     std::cerr << kutil::expr_to_string(call.ret) << "\n";
