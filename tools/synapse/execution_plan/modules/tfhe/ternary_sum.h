@@ -224,7 +224,9 @@ public:
             // and start going down the Expression tree
             // TODO Is this enough??
             if (expr->getKid(0)->getKind() == klee::Expr::Kind::Concat) {
-                collect_modification_exprs(expr->getKid(0), modifications);
+                klee::ref<klee::Expr> concat_expr = expr->getKid(0);
+                collect_modification_exprs(concat_expr->getKid(0), modifications);
+                collect_modification_exprs(concat_expr->getKid(1), modifications);
                 return;
             }
             // Check if the Extract has a child arithmetic expression
@@ -244,11 +246,15 @@ public:
         case klee::Expr::Kind::Concat:
             // Check if the left, or right, child of Concat is a Read (value
             // with no modification)
-            if (expr->getKid(0)->getKind() == klee::Expr::Kind::Read ||
-                expr->getKid(1)->getKind() == klee::Expr::Kind::Read) {
-                // If so, return null
-                return;
-            }
+            // FIXME This seems like a mistake, it should be enough to have a switch case for the Read
+            //  which doesn't take any action
+            //  Having this piece of code (v) makes it so that if any of the kids of Concat is a Read,
+            //  return (no other modification exists.
+//            if (expr->getKid(0)->getKind() == klee::Expr::Kind::Read ||
+//                expr->getKid(1)->getKind() == klee::Expr::Kind::Read) {
+//                // If so, return null
+//                return;
+//            }
 
             // Dive into the left side of Concat
             collect_modification_exprs(expr->getKid(0), modifications);
@@ -256,6 +262,9 @@ public:
             // Dive into the right side of Concat
             collect_modification_exprs(expr->getKid(1), modifications);
 
+            break;
+        case klee::Expr::Kind::Read:
+            // If this expression is a Read, do nothing since it's not a modification.
             break;
         // Add more cases for other expression kinds as needed
         default:
@@ -302,15 +311,13 @@ public:
 
         std::cout << "Done processing and filling modifications_per_value"
                   << std::endl;
-        std::cout << "modifications_per_value size: "
-                  << modifications_per_value.size() << std::endl;
         for (auto &_expr : modifications_per_value) {
             if (_expr.isNull()) {
-                std::cout << "null" << std::endl;
+                std::cout << "(null)" << std::endl;
                 continue;
             }
-            std::cout << "modifications_per_value: "
-                      << generate_tfhe_code(_expr) << std::endl;
+            std::cout << "("
+                      << generate_tfhe_code(_expr) << ")" << std::endl;
         }
 
         return modifications_per_value;
