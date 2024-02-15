@@ -256,12 +256,27 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
 }
 
 /// \brief Preprocess the Execution Plan to extract metadata. Starts at the
-/// first Branching node. \param ep_node \param value_conditions
+/// first Conditional node. \param ep_node \param value_conditions \param value
+/// \param all_conditions \return void
 void preprocess_aux(const ExecutionPlanNode_ptr &ep_node,
-                    value_conditions_t &value_conditions, int value) {
+                    value_conditions_t &value_conditions, int value,
+                    std::vector<ExecutionPlanNode_ptr> &all_conditions) {
     std::cout << ep_node->get_module()->get_name() << std::endl;
 
+    if (ep_node->get_module_type() == synapse::Module::tfhe_Conditional ||
+        ep_node->get_module_type() == synapse::Module::tfhe_TruthTablePBS) {
+        // If condition wasn't added yet
+        if (std::find_if(all_conditions.begin(), all_conditions.end(),
+                         [ep_node](ExecutionPlanNode_ptr node) {
+                             return node->get_id() == ep_node->get_id();
+                         }) == all_conditions.end()) {
+            all_conditions.emplace_back(ep_node);
+        }
+    }
+
     if (ep_node->get_module_type() == synapse::Module::tfhe_Conditional) {
+        value_conditions.set_condition(ep_node);
+
         // Then EP node
         if (value_conditions.get_then_branch() == nullptr) {
             value_conditions.set_then_branch(value_conditions_t());
@@ -272,7 +287,8 @@ void preprocess_aux(const ExecutionPlanNode_ptr &ep_node,
                       << std::endl;
         }
         preprocess_aux(ep_node->get_next()[0],
-                       *(value_conditions.get_then_branch()), value);
+                       *(value_conditions.get_then_branch()), value,
+                       all_conditions);
 
         // Else EP node
         if (value_conditions.get_else_branch() == nullptr) {
@@ -284,15 +300,18 @@ void preprocess_aux(const ExecutionPlanNode_ptr &ep_node,
                       << std::endl;
         }
         preprocess_aux(ep_node->get_next()[1],
-                       *(value_conditions.get_else_branch()), value);
+                       *(value_conditions.get_else_branch()), value,
+                       all_conditions);
 
         // Then EP node is just a wrapper around one of the two branch arms
     } else if (ep_node->get_module_type() == synapse::Module::tfhe_Then) {
-        preprocess_aux(ep_node->get_next()[0], value_conditions, value);
+        preprocess_aux(ep_node->get_next()[0], value_conditions, value,
+                       all_conditions);
 
         // Else EP node is just a wrapper around one of the two branch arms
     } else if (ep_node->get_module_type() == synapse::Module::tfhe_Else) {
-        preprocess_aux(ep_node->get_next()[0], value_conditions, value);
+        preprocess_aux(ep_node->get_next()[0], value_conditions, value,
+                       all_conditions);
 
         // Modification EP node
     } else if (ep_node->get_module_type() == synapse::Module::tfhe_TernarySum) {
@@ -300,12 +319,11 @@ void preprocess_aux(const ExecutionPlanNode_ptr &ep_node,
             std::static_pointer_cast<synapse::targets::tfhe::TernarySum>(
                 ep_node->get_module());
 
-        // TODO Should call here some kind of method that sees if there are
-        //  actual modifications on this specific value
         value_conditions.modification =
             ternary_sum_module->get_modification_of(value);
         std::cout << "After getting modification.... Modification: "
-                  << generate_tfhe_code(value_conditions.modification) << std::endl;
+                  << generate_tfhe_code(value_conditions.modification)
+                  << std::endl;
     }
 
     if (ep_node->get_module()->get_type() == synapse::Module::tfhe_Drop) {
@@ -316,7 +334,8 @@ void preprocess_aux(const ExecutionPlanNode_ptr &ep_node,
 
 // Preprocess the Execution Plan to extract metadata
 std::vector<value_conditions_t> preprocess(
-    const ExecutionPlanNode_ptr &ep_node) {
+    const ExecutionPlanNode_ptr &ep_node,
+    std::vector<ExecutionPlanNode_ptr> &all_conditions) {
     // For each value,
     // create a value_conditions_t object,
     auto packet_borrow_secret_node = ep_node->find_node_by_module_type(
@@ -331,69 +350,92 @@ std::vector<value_conditions_t> preprocess(
     std::vector<value_conditions_t> value_conditions(chunk_values_amount);
 
     std::cout << "Chunk Values Amount: " << chunk_values_amount << std::endl;
-    // TODO start by first figuring out how to see if the value is modified or
-    // not for this return chunk leaf.
-    //  I'm saying this because for a case like: ((1 + packet_chunks[2])) ++
-    //  (packet_chunks) The first and second value is not modified, but the
-    //  third is. So we need to figure out how to see this. Does the
-    //  "modifications", by being a vector, imply this??
-    //                                            Meaning, the vector elements
-    //                                            and their indexes will
-    //                                             tell me if this value is
-    //                                             modified or not?
     for (int n_value = 0; n_value < chunk_values_amount; ++n_value) {
         preprocess_aux(packet_borrow_secret_node->get_next()[0],
-                       value_conditions[n_value], n_value);
+                       value_conditions[n_value], n_value, all_conditions);
     }
 
-    // TODO At the end we should have a metadata object with all the modifications
+    // TODO At the end we have a metadata object with all the modifications
     //  for each value
     //  We need to simplify the value_conditions_t object and
     //  remove any unnecessary condition nodes
-    //  that don't modify the value.
-
-    // TODO After this simplification,
-    //  we can start producing the code for each value.
-    //  For this,
-    //  we need to go through the object
-    //  and get the condition klee Expression through the node id.
-    //      Write the code for this condition
-    //      and continue down the tree of this object to write the
-    //      full chain of conditions
-    //      and finally writing the actual modification.
+    //  that have all nulls on the "modification" vector.
 
     return value_conditions;
 }
 
-void synthesize_code(const ExecutionPlan &ep) {
-    // Create file if not exists and open it with write permission
-    std::ofstream myfile;
-    myfile.open("main.rs");
+void produce_code_aux(value_conditions_t &value_condition,
+                      std::string &code) {
+    if (value_condition.then_branch) {
+        value_condition.then_branch;
+    }
 
+    if (value_condition.else_branch) {
+        value_condition.else_branch;
+    }
+}
+
+std::string produce_code(std::vector<value_conditions_t> &value_conditions,
+                         std::vector<ExecutionPlanNode_ptr> &all_conditions) {
+    std::string code("");
+
+    for (auto &condition : all_conditions) {
+        if (condition->get_module_type() == synapse::Module::tfhe_Conditional) {
+            auto conditional_module =
+                std::static_pointer_cast<synapse::targets::tfhe::Conditional>(
+                    condition->get_module());
+            code += std::string("let cond_val") +
+                    std::to_string(condition->get_id()) + std::string(" = ") +
+                    conditional_module->generate_code(false) +
+                    std::string(";") + std::string("\n");
+        }
+        // TODO Add other types of Conditionals, such as multi PBS
+    }
+
+    // For each value [0, 1, ..]
+    for (int n_value = 0; n_value < value_conditions.size(); ++n_value) {
+        auto current_condition = value_conditions[n_value];
+
+        produce_code_aux(current_condition, code);
+    }
+
+    return code;
+}
+
+void synthesize_code(const ExecutionPlan &ep) {
     CodeGenerator code_generator(Out);
     // Assuming the only target is TFHE-rs
     assert(TargetList.size() == 1 && TargetList[0] == TargetType::tfhe);
     code_generator.add_target(TargetList[0]);
     ExecutionPlan extracted_ep = code_generator.extract_at(ep, 0);
 
+    std::vector<ExecutionPlanNode_ptr> all_conditions;
     std::vector<value_conditions_t> value_conditions =
-        preprocess(extracted_ep.get_root());
+        preprocess(extracted_ep.get_root(), all_conditions);
 
-    gen_data_t gen_data;
-    gen_data.chunk_values_amount = 0;
-    std::string code;
-    //    code = synthesize_code_aux(extracted_ep.get_root(), gen_data);
-    code += std::string("\n");
-
-    for (std::string condition : gen_data.conditions) {
-        myfile << condition;
-    }
-
-    myfile << code;
-
+    // Create file if not exists and open it with write permission
+    std::ofstream myfile;
+    myfile.open("main.rs");
+    std::string code = produce_code(value_conditions, all_conditions);
     myfile << code;
     myfile.flush();
     std::cout << code << std::endl;
+
+    //    gen_data_t gen_data;
+    //    gen_data.chunk_values_amount = 0;
+    //    std::string code;
+    //    code = synthesize_code_aux(extracted_ep.get_root(), value_conditions,
+    //    gen_data); code += std::string("\n");
+    //
+    //    for (std::string condition : gen_data.conditions) {
+    //        myfile << condition;
+    //    }
+    //
+    //    myfile << code;
+    //
+    //    myfile << code;
+    //    myfile.flush();
+    //    std::cout << code << std::endl;
 
     myfile.close();
 }

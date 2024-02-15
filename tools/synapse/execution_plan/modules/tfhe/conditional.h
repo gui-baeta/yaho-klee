@@ -140,7 +140,7 @@ public:
 
     const klee::ref<klee::Expr> &get_condition() const { return condition; }
 
-    std::string generate_code() const {
+    std::string generate_code(bool needs_cloning = true) const {
         // Get the condition type
         klee::Expr::Kind conditionType = this->condition->getKind();
 
@@ -153,58 +153,58 @@ public:
         switch (conditionType) {
         // Case for handling equality expressions.
         case klee::Expr::Eq:
-            code = generate_tfhe_code(this->condition->getKid(1))
+            code = generate_tfhe_code(this->condition->getKid(1), needs_cloning)
                    + std::string(".eq(")
-                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
+                   + generate_tfhe_code(this->condition->getKid(0), needs_cloning) + std::string(")");
             break;
         // Case for handling unsigned less-than expressions.
         case klee::Expr::Ult:
-            code = generate_tfhe_code(this->condition->getKid(1))
+            code = generate_tfhe_code(this->condition->getKid(1), needs_cloning)
                    + std::string(".ge(")
-                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
+                   + generate_tfhe_code(this->condition->getKid(0), needs_cloning) + std::string(")");
             break;
 
         // Case for handling unsigned less-than-or-equal-to expressions.
         case klee::Expr::Ule:
-            code = generate_tfhe_code(this->condition->getKid(1))
+            code = generate_tfhe_code(this->condition->getKid(1), needs_cloning)
                    + std::string(".gt(")
-                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
+                   + generate_tfhe_code(this->condition->getKid(0), needs_cloning) + std::string(")");
             break;
 
         // Case for handling unsigned greater-than expressions.
         case klee::Expr::Ugt:
-            code = generate_tfhe_code(this->condition->getKid(1))
+            code = generate_tfhe_code(this->condition->getKid(1), needs_cloning)
                    + std::string(".le(")
-                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
+                   + generate_tfhe_code(this->condition->getKid(0), needs_cloning) + std::string(")");
             break;
 
         // Fallthrough to Uge since there is no signed values in TFHE
         case klee::Expr::Sge:
             // TODO Look at https://www.zama.ai/post/releasing-tfhe-rs-v0-4-0
             //  and see how to use signed comparisons
-            code = generate_tfhe_code(this->condition->getKid(1))
+            code = generate_tfhe_code(this->condition->getKid(1), needs_cloning)
                    + std::string(".lt(")
-                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
+                   + generate_tfhe_code(this->condition->getKid(0), needs_cloning) + std::string(")");
             break;
         // Case for handling unsigned greater-than-or-equal-to expressions.
         case klee::Expr::Uge:
-            code = generate_tfhe_code(this->condition->getKid(1))
+            code = generate_tfhe_code(this->condition->getKid(1), needs_cloning)
                    + std::string(".lt(")
-                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
+                   + generate_tfhe_code(this->condition->getKid(0), needs_cloning) + std::string(")");
             break;
 
         // Case for handling signed less-than expressions.
         case klee::Expr::Slt:
-            code = generate_tfhe_code(this->condition->getKid(1))
+            code = generate_tfhe_code(this->condition->getKid(1), needs_cloning)
                    + std::string(".ge(")
-                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
+                   + generate_tfhe_code(this->condition->getKid(0), needs_cloning) + std::string(")");
             break;
 
         // Case for handling signed less-than-or-equal-to expressions.
         case klee::Expr::Sle:
-            code = generate_tfhe_code(this->condition->getKid(1))
+            code = generate_tfhe_code(this->condition->getKid(1), needs_cloning)
                    + std::string(".gt(")
-                   + generate_tfhe_code(this->condition->getKid(0)) + std::string(");");
+                   + generate_tfhe_code(this->condition->getKid(0), needs_cloning) + std::string(")");
             break;
         // TODO Add more cases as needed for other condition types
         default:

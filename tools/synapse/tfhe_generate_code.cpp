@@ -27,7 +27,7 @@ std::string generate_tfhe_constant(const klee::ref<klee::Expr>& expr) {
     return constant;
 }
 
-std::string generate_tfhe_read(const klee::ref<klee::Expr>& expr) {
+std::string generate_tfhe_read(const klee::ref<klee::Expr>& expr, bool needs_cloning = true) {
     klee::ReadExpr* read_expr = dyn_cast<klee::ReadExpr>(expr);
     std::string array_name = read_expr->updates.root->name;
     klee::ConstantExpr* const_expr =
@@ -35,11 +35,14 @@ std::string generate_tfhe_read(const klee::ref<klee::Expr>& expr) {
 
     std::string index_as_str;
     const_expr->toString(index_as_str);
-    return std::string("val") + index_as_str + std::string(".clone()");
-//    return array_name + std::string("[") + index + std::string("]");
+    if (needs_cloning) {
+        return std::string("val") + index_as_str + std::string(".clone()");
+    } else {
+        return std::string("val") + index_as_str;
+    }
 }
 
-std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr) {
+std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr, bool needs_cloning = true) {
     std::string code = "()";
 
     if (expr.isNull()) {
@@ -52,7 +55,7 @@ std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr) {
         break;
     }
     case klee::Expr::Read: {
-        code = generate_tfhe_read(expr);
+        code = generate_tfhe_read(expr, needs_cloning);
         break;
     }
     case klee::Expr::Select: {
@@ -60,12 +63,12 @@ std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr) {
         break;
     }
     case klee::Expr::Concat: {
-        code = generate_tfhe_code(expr->getKid(0)) + std::string(", ") + generate_tfhe_code(expr->getKid(1));
+        code = generate_tfhe_code(expr->getKid(0), needs_cloning) + std::string(", ") + generate_tfhe_code(expr->getKid(1), needs_cloning);
         break;
     }
     case klee::Expr::Extract: {
         // This is done since the Extract doesn't do anything in particular
-        code = generate_tfhe_code(expr->getKid(0));
+        code = generate_tfhe_code(expr->getKid(0), needs_cloning);
         break;
     }
     case klee::Expr::ZExt: {
@@ -79,17 +82,17 @@ std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr) {
         //  >    )
         //    )
 
-        code = generate_tfhe_code(expr->getKid(0));
+        code = generate_tfhe_code(expr->getKid(0), needs_cloning);
         break;
     }
     case klee::Expr::SExt: {
         // FIXME This is a hack to avoid generating the signed extension for a
         //  casting. The Signed Extension adds 1s to the left of the rightmost 1
-        code = generate_tfhe_code(expr->getKid(0));
+        code = generate_tfhe_code(expr->getKid(0), needs_cloning);
         break;
     }
     case klee::Expr::Add: {
-        code = generate_tfhe_code(expr->getKid(0)) + std::string(" + ") + generate_tfhe_code(expr->getKid(1));
+        code = generate_tfhe_code(expr->getKid(0), needs_cloning) + std::string(" + ") + generate_tfhe_code(expr->getKid(1), needs_cloning);
         break;
     }
     case klee::Expr::Sub: {

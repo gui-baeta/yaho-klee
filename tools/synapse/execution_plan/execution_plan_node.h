@@ -59,6 +59,7 @@ public:
   static ExecutionPlanNode_ptr build(const ExecutionPlanNode *ep_node);
 
   ExecutionPlanNode_ptr find_node_by_module_type(int type) const;
+  ExecutionPlanNode_ptr find_node_by_id(ep_node_id_t id) const;
 
   int get_module_type() const;
 

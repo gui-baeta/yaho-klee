@@ -107,6 +107,22 @@ ExecutionPlanNode_ptr ExecutionPlanNode::find_node_by_module_type(
 
     return nullptr;
 }
+
+ExecutionPlanNode_ptr ExecutionPlanNode::find_node_by_id(ep_node_id_t id) const {
+    if (this->id == id) {
+        return std::shared_ptr<ExecutionPlanNode>(const_cast<ExecutionPlanNode *>(this));
+    }
+
+    for (auto &branch : this->next) {
+        auto result = branch->find_node_by_id(id);
+        if (result) {
+            return result;
+        }
+    }
+
+    return nullptr;
+}
+
 int ExecutionPlanNode::get_module_type() const { return this->get_module()->get_type(); }
 
 } // namespace synapse

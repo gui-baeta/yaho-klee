@@ -146,7 +146,7 @@ bool operator==(const ExecutionPlan &lhs, const ExecutionPlan &rhs);
 
 class value_conditions_t {
 public:
-    uint64_t condition_id = 0;
+    ExecutionPlanNode_ptr condition = nullptr;
 
     // These represent possible subsequent conditions for the value
     std::shared_ptr<value_conditions_t> then_branch = nullptr;
@@ -159,8 +159,12 @@ public:
     // For the vector constructor
     value_conditions_t() {}
 
-    value_conditions_t(uint64_t _condition_id) {
-        this->condition_id = _condition_id;
+    value_conditions_t(ExecutionPlanNode_ptr _condition) {
+        this->condition = _condition;
+    }
+
+    void set_condition(ExecutionPlanNode_ptr _condition) {
+        this->condition = _condition;
     }
 
     bool has_changes() {
