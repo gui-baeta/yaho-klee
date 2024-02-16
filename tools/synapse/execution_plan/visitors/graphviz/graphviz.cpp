@@ -834,6 +834,7 @@ DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::PacketBorrowNextSecret)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::PacketReturnChunk)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::TruthTablePBS)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::Conditional) // FIXME This might be a problem
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::SinglePBS) // FIXME This might be a problem
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::TernarySum)
 DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(targets::tfhe::If)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tfhe::Then)

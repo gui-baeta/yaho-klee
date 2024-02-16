@@ -307,6 +307,16 @@ BDD::Node_ptr ExecutionPlan::get_next_node() const {
   return next;
 }
 
+ExecutionPlanNode_ptr ExecutionPlan::get_last_developed_node() const {
+  ExecutionPlanNode_ptr leaf;
+
+  if (leaves.size()) {
+    leaf = leaves[0].leaf;
+  }
+
+  return leaf;
+}
+
 ExecutionPlanNode_ptr ExecutionPlan::get_active_leaf() const {
   ExecutionPlanNode_ptr leaf;
 

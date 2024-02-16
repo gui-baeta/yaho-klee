@@ -97,6 +97,8 @@ public:
 
   /// Returns the node selected for processing.
   ExecutionPlanNode_ptr get_active_leaf() const;
+  ExecutionPlanNode_ptr get_last_developed_node() const;
+
   TargetType get_current_platform() const;
 
   ExecutionPlan replace_leaf(Module_ptr new_module, const BDD::Node_ptr &next,

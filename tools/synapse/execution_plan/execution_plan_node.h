@@ -1,6 +1,7 @@
 #pragma once
 
 #include "call-paths-to-bdd.h"
+#include <string>
 
 namespace synapse {
 
@@ -61,6 +62,7 @@ public:
   ExecutionPlanNode_ptr find_node_by_module_type(int type) const;
   ExecutionPlanNode_ptr find_node_by_id(ep_node_id_t id) const;
 
+  std::string get_module_name() const;
   int get_module_type() const;
 
 private:

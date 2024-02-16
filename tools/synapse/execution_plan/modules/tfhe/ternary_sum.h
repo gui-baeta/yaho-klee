@@ -25,7 +25,7 @@ public:
           original_chunk(_original_chunk),
           modifications(_modifications) {}
 
-private:
+public:
     klee::ref<klee::Expr> get_original_chunk(const ExecutionPlan &ep,
                                              BDD::Node_ptr node) const {
         auto prev_borrows = get_prev_fn(
@@ -70,7 +70,7 @@ private:
         }
 
         // TODO Check if the previous node is a Conditional node. If not, bail
-        // out
+        //  out
         auto ep_node = ep.get_active_leaf();
         auto prev_ep_node =
             ep_node

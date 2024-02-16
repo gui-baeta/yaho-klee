@@ -72,6 +72,9 @@ private:
                                 BDD::Node_ptr node) override {
         processing_result_t result;
 
+        // FIXME Just for testing
+        return result;
+
         // Check if it's a branch node
         const BDD::Branch *branch_node = BDD::cast_node<BDD::Branch>(node);
         if (!branch_node) {

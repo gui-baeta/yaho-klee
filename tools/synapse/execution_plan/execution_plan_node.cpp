@@ -123,6 +123,7 @@ ExecutionPlanNode_ptr ExecutionPlanNode::find_node_by_id(ep_node_id_t id) const 
     return nullptr;
 }
 
+std::string ExecutionPlanNode::get_module_name() const { return this->get_module()->get_name(); }
 int ExecutionPlanNode::get_module_type() const { return this->get_module()->get_type(); }
 
 } // namespace synapse

@@ -162,6 +162,7 @@ class PacketBorrowNextSecret;
 class PacketReturnChunk;
 class TruthTablePBS;
 class Conditional;
+class SinglePBS;
 class TernarySum;
 class If;
 class Then;
@@ -370,6 +371,7 @@ public:
   VISIT(targets::tfhe::PacketBorrowNextSecret)
   VISIT(targets::tfhe::TruthTablePBS)
   VISIT(targets::tfhe::Conditional)
+  VISIT(targets::tfhe::SinglePBS)
   VISIT(targets::tfhe::TernarySum)
   VISIT(targets::tfhe::If)
   VISIT(targets::tfhe::Then)

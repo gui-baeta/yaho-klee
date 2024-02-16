@@ -570,6 +570,10 @@ void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
 }
 
 void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
+                          const target::SinglePBS *node) {
+}
+
+void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
                          const target::TernarySum *node) {
   nf_process_builder.indent();
   nf_process_builder.append("HE Operation");

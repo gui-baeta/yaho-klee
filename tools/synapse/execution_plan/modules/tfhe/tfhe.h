@@ -5,8 +5,11 @@
 
 #include "broadcast.h"
 #include "cht_find_backend.h"
-#include "conditional.h"
+#include "packet_borrow_next_chunk.h"
+#include "packet_borrow_next_secret.h"
 #include "ternary_sum.h"
+#include "conditional.h"
+#include "single_pbs.h"
 #include "current_time.h"
 #include "dchain_allocate_new_index.h"
 #include "dchain_free_index.h"
@@ -24,8 +27,6 @@
 #include "map_get.h"
 #include "map_put.h"
 #include "nf_set_rte_ipv4_udptcp_checksum.h"
-#include "packet_borrow_next_chunk.h"
-#include "packet_borrow_next_secret.h"
 #include "packet_get_unread_length.h"
 #include "packet_return_chunk.h"
 #include "rte_ether_addr_hash.h"
@@ -47,7 +48,7 @@ namespace tfhe {
 
 class tfheTarget : public Target {
 public:
-  tfheTarget()
+  tfheTarget() // TODO GUI Add module here
       : Target(TargetType::tfhe,
                {
                    MODULE(MapGet),
@@ -57,6 +58,7 @@ public:
                    MODULE(PacketReturnChunk),
                    MODULE(TruthTablePBS),
                    MODULE(Conditional),
+                   MODULE(SinglePBS),
                    MODULE(TernarySum),
                    MODULE(If),
                    MODULE(Then),
