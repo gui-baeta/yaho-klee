@@ -205,7 +205,7 @@ std::vector<Module::modification_t> Module::build_modifications(
     // TODO This gives me the number of bits of the total chunk. Divided by 8 I get the number of bytes.
     //  I can use this print all the variables that could be modified:
     //  (b,c) = (5 > a)*((b+1,c+1)) + ...
-    std::cout << "-- Modifications" << std::endl << "size: " << size << std::endl;
+    std::cout << "-- Building Modifications" << std::endl << "size: " << size << std::endl;
 
     for (unsigned int b = 0; b < size; b += 8) {
         auto before_byte = kutil::solver_toolbox.exprBuilder->Extract(

@@ -82,6 +82,8 @@ private:
         // At this point, we know it's a branch
         assert(!branch_node->get_condition().isNull());
 
+        std::cout << "In branch" << std::endl;
+
         // Bail out if any of the children is a branch/conditional
         if (branch_node->get_on_true()->get_type() ==
                 BDD::Node::NodeType::BRANCH ||
@@ -89,6 +91,7 @@ private:
                 BDD::Node::NodeType::BRANCH) {
             return result;
         }
+        std::cout << "None of the Children are branches" << std::endl;
         // We can assume that the children are of the type PacketReturnChunk
 
         int number_of_values = 0;
@@ -104,22 +107,34 @@ private:
                 packet_borrow_secret_module->get_chunk_values_amount();
         }
 
-        std::shared_ptr<TernarySum> empty_operations_module = std::make_shared<TernarySum>();
-        Module_ptr _on_true_module = empty_operations_module->process(ep, branch_node->get_on_true()).module;
-        Module_ptr _on_false_module = empty_operations_module->process(ep, branch_node->get_on_false()).module;
+        std::cout << "Number of values: " << std::to_string(number_of_values) << std::endl;
 
-        std::shared_ptr<TernarySum> on_true_module = std::static_pointer_cast<TernarySum>(_on_true_module);
-        std::shared_ptr<TernarySum> on_false_module = std::static_pointer_cast<TernarySum>(_on_false_module);
+        std::shared_ptr<TernarySum> empty_operations_module = std::make_shared<TernarySum>();
+        std::cout << "1" << std::endl;
+        std::shared_ptr<TernarySum> _on_true_module = empty_operations_module->inflate(ep, branch_node->get_on_true());
+        std::cout << "2" << std::endl;
+        std::shared_ptr<TernarySum> _on_false_module = empty_operations_module->inflate(ep, branch_node->get_on_false());
+        std::cout << "Inflated both Operations modules" << std::endl;
+
         typedef klee::ref<klee::Expr> expr_ref;
-        std::vector<expr_ref> on_true_modifications = on_true_module->get_modifications_exprs();
-        std::vector<expr_ref> on_false_modifications = on_false_module->get_modifications_exprs();
+        std::vector<expr_ref> on_true_modifications = _on_true_module->get_modifications_exprs();
+        std::vector<expr_ref> on_false_modifications = _on_false_module->get_modifications_exprs();
+
+        std::cout << "Got the modifications for each child" << std::endl;
 
         for (int i = 0; i < number_of_values; ++i) {
+            std::cout << "-- Value " << std::to_string(i) << ":" << std::endl;
             expr_ref on_true_mod = on_true_modifications[i];
             expr_ref on_false_mod = on_false_modifications[i];
 
+            std::cout << "(" << generate_tfhe_code(on_true_mod) << ")" << std::endl;
+            std::cout << "(" << generate_tfhe_code(on_false_mod) << ")" << std::endl;
+
             // TODO Check for differences in modifications from both sides.
-            //     If there are differences, we spit out a SinglePBS module
+            //     - If they are the same, we add a "Change" module above this one
+            //          * We need to mark, somehow, that this value is already dealt with!!
+            //     - If there are differences, we spit out a SinglePBS module and mark this value as dealt with
+            //                                           so to leave the rest of the values for the next module
         }
 
         return result;

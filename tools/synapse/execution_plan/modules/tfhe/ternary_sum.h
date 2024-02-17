@@ -116,6 +116,34 @@ public:
         return result;
     }
 
+    std::shared_ptr<TernarySum> inflate(const ExecutionPlan &ep,
+                                BDD::Node_ptr node) {
+        // Check if this is a valid return chunk BDD node
+        auto casted = BDD::cast_node<BDD::Call>(node);
+
+        if (!casted) {
+            return nullptr;
+        }
+
+        auto call = casted->get_call();
+
+        assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr.isNull());
+        assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in.isNull());
+
+        auto _chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr;
+        auto _current_chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
+        auto _original_chunk = get_original_chunk(ep, node);
+
+        auto _chunk_addr = kutil::expr_addr_to_obj_addr(_chunk);
+        auto _modifications =
+            build_modifications(_original_chunk, _current_chunk);
+
+        auto new_module = std::make_shared<TernarySum>(
+            node, _chunk_addr, _original_chunk, _modifications);
+
+        return new_module;
+    }
+
 public:
     virtual void visit(ExecutionPlanVisitor &visitor,
                        const ExecutionPlanNode *ep_node) const override {
@@ -274,8 +302,6 @@ public:
         return;  // Finished pattern matching
     }
 
-    // FIXME Is this API to get all modifications necessary?
-    //  After optimizing obtaining only the needed modification, will we need this?
     // Extracts the modifications expression for each value, based on the
     // expressions in the modifications vector
     std::vector<klee::ref<klee::Expr>> get_modifications_exprs() const {
