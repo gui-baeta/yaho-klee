@@ -30,7 +30,7 @@ ExecutionPlan TofinoModule::apply_postponed(ExecutionPlan ep,
       continue;
     }
 
-    ep = ep.add_leaves(p.second, current_node, false, false);
+    ep = ep.add_leaf(p.second, current_node, false, false);
     ep.replace_active_leaf_node(current_node, false);
   }
 

@@ -54,7 +54,7 @@ private:
 
       auto new_module = std::make_shared<VectorBorrow>(
           node, _vector_addr, _index, _value_out_addr, _borrowed_cell);
-      auto new_ep = ep.add_leaves(new_module, node->get_next());
+      auto new_ep = ep.add_leaf(new_module, node->get_next());
 
       result.module = new_module;
       result.next_eps.push_back(new_ep);

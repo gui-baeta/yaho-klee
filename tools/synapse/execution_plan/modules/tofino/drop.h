@@ -29,7 +29,7 @@ private:
     }
 
     auto new_module = std::make_shared<Drop>(node);
-    auto new_ep = ep.add_leaves(new_module, node, false, true);
+    auto new_ep = ep.add_leaf(new_module, node, false, true);
     auto with_postponed = apply_postponed(new_ep, node, node->get_next());
 
     result.module = new_module;

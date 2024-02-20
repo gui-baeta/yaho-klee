@@ -34,7 +34,7 @@ private:
       auto _port = casted->get_return_value();
 
       auto new_module = std::make_shared<Forward>(node, _port);
-      auto new_ep = ep.add_leaves(new_module, node->get_next(), true);
+      auto new_ep = ep.add_leaf(new_module, node->get_next(), true);
 
       result.module = new_module;
       result.next_eps.push_back(new_ep);

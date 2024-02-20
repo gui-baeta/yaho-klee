@@ -107,7 +107,7 @@ public:
   ExecutionPlan ignore_leaf(const BDD::Node_ptr &next, TargetType next_target,
                             bool process_bdd_node = true) const;
 
-  ExecutionPlan add_leaves(Module_ptr new_module, const BDD::Node_ptr &next,
+  ExecutionPlan add_leaf(Module_ptr new_module, const BDD::Node_ptr &next,
                            bool is_terminal = false,
                            bool process_bdd_node = true) const;
 

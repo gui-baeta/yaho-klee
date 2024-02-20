@@ -401,7 +401,7 @@ void ExecutionPlan::force_termination() {
   leaves.erase(leaves.begin());
 }
 
-ExecutionPlan ExecutionPlan::add_leaves(Module_ptr new_module,
+ExecutionPlan ExecutionPlan::add_leaf(Module_ptr new_module,
                                         const BDD::Node_ptr &next,
                                         bool is_terminal,
                                         bool process_bdd_node) const {
@@ -525,6 +525,8 @@ ExecutionPlan ExecutionPlan::clone(BDD::BDD new_bdd) const {
 }
 
 ExecutionPlan ExecutionPlan::clone(bool deep) const {
+    std::cout << "cloning" << std::endl;
+    std::cout << "current number of the EP:" << std::to_string(this->get_id()) << std::endl;
   ExecutionPlan copy = *this;
 
   copy.id = counter++;
@@ -539,6 +541,7 @@ ExecutionPlan ExecutionPlan::clone(bool deep) const {
     copy.memory_banks[ep_it->first] = ep_it->second->clone();
   }
 
+  // If the EP has at least one Node, clone these Nodes too
   if (root) {
     copy.root = clone_nodes(copy, root.get());
   } else {

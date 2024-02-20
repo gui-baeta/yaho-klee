@@ -52,7 +52,7 @@ private:
 
       auto new_module = std::make_shared<SetIpv4UdpTcpChecksum>(
           node, _ip_header_addr, _l4_header_addr, _checksum);
-      auto new_ep = ep.add_leaves(new_module, node->get_next());
+      auto new_ep = ep.add_leaf(new_module, node->get_next());
 
       result.module = new_module;
       result.next_eps.push_back(new_ep);

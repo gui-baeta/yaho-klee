@@ -38,7 +38,7 @@ private:
     auto _port = casted->get_return_value();
 
     auto forward = std::make_shared<ForwardThroughTofino>(node, _port);
-    auto forward_ep = ep.add_leaves(forward, node->get_next(), true);
+    auto forward_ep = ep.add_leaf(forward, node->get_next(), true);
 
     result.module = forward;
     result.next_eps.push_back(forward_ep);

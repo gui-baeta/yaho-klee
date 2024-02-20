@@ -99,7 +99,7 @@ private:
 
     auto new_module =
         std::make_shared<SendToController>(node_cloned, _metadata_code_path);
-    auto next_ep = ep_cloned.add_leaves(new_module, next, false, false);
+    auto next_ep = ep_cloned.add_leaf(new_module, next, false, false);
     next_ep.replace_active_leaf_node(next, false);
 
     result.module = new_module;

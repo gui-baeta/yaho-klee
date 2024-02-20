@@ -240,7 +240,7 @@ private:
         node_cloned, _code_path, _dataplane_state);
 
     auto new_ep =
-        ep_cloned.add_leaves(send_to_controller, next_node, false, false);
+        ep_cloned.add_leaf(send_to_controller, next_node, false, false);
     new_ep.replace_active_leaf_node(next_node, false);
 
     auto with_postponed = apply_postponed(new_ep, next_node, next_node);

@@ -111,7 +111,7 @@ private:
 
       result.next_eps.push_back(ep_if_then_else);
     } else {
-      auto new_ep = ep.add_leaves(new_module, node->get_next());
+      auto new_ep = ep.add_leaf(new_module, node->get_next());
       result.next_eps.push_back(new_ep);
     }
 

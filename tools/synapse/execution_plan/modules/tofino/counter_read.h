@@ -129,7 +129,7 @@ private:
 
     auto new_module =
         std::make_shared<CounterRead>(node, _counter, _index, _borrowed_cell);
-    auto new_ep = ep.add_leaves(new_module, node->get_next());
+    auto new_ep = ep.add_leaf(new_module, node->get_next());
 
     save_decision(new_ep, _counter);
 

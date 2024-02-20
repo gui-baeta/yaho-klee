@@ -88,7 +88,7 @@ private:
     auto new_module =
         std::make_shared<MapGet>(node, _map_addr, _key, _map_has_this_key,
                                  _value_out, _generated_symbols);
-    auto new_ep = ep.add_leaves(new_module, node->get_next());
+    auto new_ep = ep.add_leaf(new_module, node->get_next());
 
     result.module = new_module;
     result.next_eps.push_back(new_ep);
@@ -141,7 +141,7 @@ private:
     auto new_module =
         std::make_shared<MapGet>(node, _vector_addr, _index, nullptr,
                                  _borrowed_cell, _generated_symbols);
-    auto new_ep = ep.add_leaves(new_module, node->get_next());
+    auto new_ep = ep.add_leaf(new_module, node->get_next());
 
     result.module = new_module;
     result.next_eps.push_back(new_ep);

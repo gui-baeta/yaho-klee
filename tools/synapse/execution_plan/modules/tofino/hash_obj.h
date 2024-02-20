@@ -47,7 +47,7 @@ private:
       auto _size_value = kutil::solver_toolbox.value_from_expr(_size);
 
       auto new_module = std::make_shared<HashObj>(node, _input, _size_value, _hash);
-      auto new_ep = ep.add_leaves(new_module, node->get_next());
+      auto new_ep = ep.add_leaf(new_module, node->get_next());
 
       result.module = new_module;
       result.next_eps.push_back(new_ep);

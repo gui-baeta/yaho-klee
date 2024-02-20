@@ -69,7 +69,7 @@ protected:
     }
 
     auto new_module = std::make_shared<TableIsAllocated>(node, table);
-    auto new_ep = ep.add_leaves(new_module, node->get_next());
+    auto new_ep = ep.add_leaf(new_module, node->get_next());
 
     save_decision(new_ep, table);
 
