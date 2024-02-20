@@ -58,16 +58,19 @@ namespace tfhe {
 class SinglePBS : public tfheModule {
 private:
     klee::ref<klee::Expr> condition;
-    klee::ref<klee::Expr> modification;
+    klee::ref<klee::Expr> then_modification;
+    klee::ref<klee::Expr> else_modification;
 
 public:
     SinglePBS() : tfheModule(ModuleType::tfhe_SinglePBS, "SinglePBS") {}
 
     SinglePBS(BDD::Node_ptr node, klee::ref<klee::Expr> _condition,
-              klee::ref<klee::Expr> _modification)
+              klee::ref<klee::Expr> _then_modification,
+              klee::ref<klee::Expr> _else_modification)
         : tfheModule(ModuleType::tfhe_SinglePBS, "SinglePBS", node),
           condition(_condition),
-          modification(_modification) {}
+          then_modification(_then_modification),
+          else_modification(_else_modification) {}
 
 private:
     processing_result_t process(const ExecutionPlan &ep,
@@ -81,6 +84,7 @@ private:
         }
         // At this point, we know it's a branch
         assert(!branch_node->get_condition().isNull());
+        klee::ref<klee::Expr> _condition = branch_node->get_condition();
 
         std::cout << "In branch" << std::endl;
 
@@ -107,18 +111,27 @@ private:
                 packet_borrow_secret_module->get_chunk_values_amount();
         }
 
-        std::cout << "Number of values: " << std::to_string(number_of_values) << std::endl;
+        std::cout << "Number of values: " << std::to_string(number_of_values)
+                  << std::endl;
 
-        std::shared_ptr<TernarySum> empty_operations_module = std::make_shared<TernarySum>();
+        std::shared_ptr<TernarySum> empty_operations_module =
+            std::make_shared<TernarySum>();
         std::cout << "1" << std::endl;
-        std::shared_ptr<TernarySum> _on_true_module = empty_operations_module->inflate(ep, branch_node->get_on_true());
+        std::shared_ptr<TernarySum> _on_true_module =
+            empty_operations_module->inflate(ep, branch_node->get_on_true());
         std::cout << "2" << std::endl;
-        std::shared_ptr<TernarySum> _on_false_module = empty_operations_module->inflate(ep, branch_node->get_on_false());
+        std::shared_ptr<TernarySum> _on_false_module =
+            empty_operations_module->inflate(ep, branch_node->get_on_false());
         std::cout << "Inflated both Operations modules" << std::endl;
 
         typedef klee::ref<klee::Expr> expr_ref;
-        std::vector<expr_ref> on_true_modifications = _on_true_module->get_modifications_exprs();
-        std::vector<expr_ref> on_false_modifications = _on_false_module->get_modifications_exprs();
+        std::vector<expr_ref> on_true_modifications;
+        std::vector<expr_ref> on_false_modifications;
+
+        std::vector<expr_ref> on_true_modifications =
+            _on_true_module->get_modifications_exprs();
+        std::vector<expr_ref> on_false_modifications =
+            _on_false_module->get_modifications_exprs();
 
         std::cout << "Got the modifications for each child" << std::endl;
 
@@ -127,36 +140,59 @@ private:
             expr_ref on_true_mod = on_true_modifications[i];
             expr_ref on_false_mod = on_false_modifications[i];
 
-            std::cout << "(" << generate_tfhe_code(on_true_mod) << ")" << std::endl;
-            std::cout << "(" << generate_tfhe_code(on_false_mod) << ")" << std::endl;
+            std::cout << "(" << generate_tfhe_code(on_true_mod) << ")"
+                      << std::endl;
+            std::cout << "(" << generate_tfhe_code(on_false_mod) << ")"
+                      << std::endl;
+
+            if (on_true_mod.isNull() && on_false_mod.isNull()) {
+                std::cout << "Both modifications are null" << std::endl;
+            } else if (kutil::solver_toolbox.are_exprs_always_equal(
+                           on_true_mod, on_false_mod)) {
+                std::cout << "Both modifications are equal" << std::endl;
+                // TODO Add a Change module
+                //  Should this be done by the Change module itself?
+            } else {
+                std::cout << "Both modifications are different" << std::endl;
+                auto new_single_pbs = std::make_shared<SinglePBS>(
+                    node, _condition, klee::ref<klee::Expr>(on_true_mod),
+                    klee::ref<klee::Expr>(on_false_mod));
+                ExecutionPlan new_ep =
+                    ep.add_leaf(new_single_pbs, nullptr, true);
+
+//                auto new_then_module = std::make_shared<Then>(node);
+//                auto new_else_module = std::make_shared<Else>(node);
+//                auto if_leaf = ExecutionPlan::leaf_t(new_single_pbs, nullptr);
+//                auto then_leaf = ExecutionPlan::leaf_t(
+//                    new_then_module, branch_node->get_on_true());
+//                auto else_leaf = ExecutionPlan::leaf_t(
+//                    new_else_module, branch_node->get_on_false());
+//
+//                std::vector<ExecutionPlan::leaf_t> if_leaves{if_leaf};
+//                std::vector<ExecutionPlan::leaf_t> then_else_leaves{then_leaf,
+//                                                                    else_leaf};
+//
+//                auto ep_if = ep.add_leaves(if_leaves);
+//                auto ep_if_then_else = ep_if.add_leaves(then_else_leaves);
+
+                result.module = new_single_pbs;
+//                result.next_eps.push_back(ep_if_then_else);
+                return result;
+            }
 
             // TODO Check for differences in modifications from both sides.
-            //     - If they are the same, we add a "Change" module above this one
-            //          * We need to mark, somehow, that this value is already dealt with!!
-            //     - If there are differences, we spit out a SinglePBS module and mark this value as dealt with
-            //                                           so to leave the rest of the values for the next module
+            //     - If they are the same, we add a "Change" module above this
+            //     one
+            //          * We need to mark, somehow, that this value is already
+            //          dealt with!!
+            //     - If there are differences, we spit out a SinglePBS module
+            //     and mark this value as dealt with
+            //                                           so to leave the rest of
+            //                                           the values for the next
+            //                                           module
         }
 
         return result;
-
-        // We want to store the if condition
-        // If condition: Expression
-        //        auto _condition = branch_node->get_condition();
-        //        // TODO See later if this is enough. For now this will do.
-        //        //    this->condition = _condition;
-        //        // Then block: node
-        //        auto _then_node = branch_node->get_on_true();
-        //        // Else block: node
-        //        auto _else_node = branch_node->get_on_false();
-        //
-        //        auto new_module = std::make_shared<SinglePBS>(
-        //        node, _condition, _modification);
-        //        auto new_ep = ep.add_leaves(new_module, node->get_next());
-        //
-        //        result.module = new_module;
-        //        result.next_eps.push_back(new_ep);
-        //
-        //        return result;
     }
 
 public:
@@ -167,7 +203,8 @@ public:
 
     virtual Module_ptr clone() const override {
         auto cloned =
-            new SinglePBS(this->node, this->condition, this->modification);
+            new SinglePBS(node, this->condition, this->then_modification,
+                          this->else_modification);
         return std::shared_ptr<Module>(cloned);
     }
 
@@ -181,7 +218,22 @@ public:
         if (!(kutil::solver_toolbox.are_exprs_always_equal(
                   condition, other_cast->get_condition()) &&
               kutil::solver_toolbox.are_exprs_always_equal(
-                  modification, other_cast->get_modification()))) {
+                  then_modification, other_cast->get_then_modification()) &&
+              kutil::solver_toolbox.are_exprs_always_equal(
+                  else_modification, other_cast->get_else_modification()))) {
+            return false;
+        }
+
+        auto other_then_modification = other_cast->get_then_modification();
+        auto other_else_modification = other_cast->get_else_modification();
+
+        if (!kutil::solver_toolbox.are_exprs_always_equal(
+                then_modification, other_then_modification)) {
+            return false;
+        }
+
+        if (!kutil::solver_toolbox.are_exprs_always_equal(
+                else_modification, other_else_modification)) {
             return false;
         }
 
@@ -192,8 +244,12 @@ public:
         return this->condition;
     }
 
-    const klee::ref<klee::Expr> &get_modification() const {
-        return this->modification;
+    const klee::ref<klee::Expr> &get_then_modification() const {
+        return this->then_modification;
+    }
+
+    const klee::ref<klee::Expr> &get_else_modification() const {
+        return this->else_modification;
     }
 
     //
