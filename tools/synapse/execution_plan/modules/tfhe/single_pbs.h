@@ -134,8 +134,6 @@ private:
         std::cout << "Inflated both Operations modules" << std::endl;
 
         typedef klee::ref<klee::Expr> expr_ref;
-        std::vector<expr_ref> on_true_modifications;
-        std::vector<expr_ref> on_false_modifications;
 
         std::vector<expr_ref> on_true_modifications =
             _on_true_module->get_modifications_exprs();
@@ -168,21 +166,6 @@ private:
                     klee::ref<klee::Expr>(on_false_mod));
                 ExecutionPlan new_ep =
                     ep.add_leaf(new_single_pbs, nullptr, true);
-
-//                auto new_then_module = std::make_shared<Then>(node);
-//                auto new_else_module = std::make_shared<Else>(node);
-//                auto if_leaf = ExecutionPlan::leaf_t(new_single_pbs, nullptr);
-//                auto then_leaf = ExecutionPlan::leaf_t(
-//                    new_then_module, branch_node->get_on_true());
-//                auto else_leaf = ExecutionPlan::leaf_t(
-//                    new_else_module, branch_node->get_on_false());
-//
-//                std::vector<ExecutionPlan::leaf_t> if_leaves{if_leaf};
-//                std::vector<ExecutionPlan::leaf_t> then_else_leaves{then_leaf,
-//                                                                    else_leaf};
-//
-//                auto ep_if = ep.add_leaves(if_leaves);
-//                auto ep_if_then_else = ep_if.add_leaves(then_else_leaves);
 
                 result.module = new_single_pbs;
                 result.next_eps.push_back(new_ep);
