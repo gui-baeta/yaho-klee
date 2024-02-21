@@ -24,6 +24,10 @@ private:
                               BDD::Node_ptr node) override {
     processing_result_t result;
 
+    // FIXME This is just for testing.
+    //  This makes SyNAPSE skip this Module
+    return result;
+
     auto casted = BDD::cast_node<BDD::Branch>(node);
 
     if (!casted) {
