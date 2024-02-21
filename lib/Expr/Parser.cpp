@@ -327,7 +327,10 @@ namespace {
                ExprBuilder *_Builder, bool _ClearArrayAfterQuery)
         : Filename(_Filename), TheMemoryBuffer(MB), Builder(_Builder),
           ClearArrayAfterQuery(_ClearArrayAfterQuery), TheLexer(MB),
-          MaxErrors(~0u), NumErrors(0) {}
+          MaxErrors(~0u), NumErrors(0) {
+        this->Tok = Token {};
+        this->Tok.kind = Token::Kind::EndOfFile;
+    }
 
     virtual ~ParserImpl();
 
@@ -998,8 +1001,11 @@ ExprResult ParserImpl::ParseParenExpr(TypeResult FIXME_UNUSED) {
   case 2:
     return ParseBinaryParenExpr(Name, ExprKind, IsFixed, ResTy);
   case 3:
-    if (ExprKind == Expr::Select)
+    if (ExprKind == Expr::Select) {
       return ParseSelectParenExpr(Name, ResTy);
+    } else {
+        /* Fallthrough */
+    }
   default:
     assert(0 && "Invalid argument kind (number of args).");
     return ExprResult();
