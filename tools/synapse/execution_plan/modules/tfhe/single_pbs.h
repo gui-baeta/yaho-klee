@@ -100,15 +100,24 @@ private:
 
         int number_of_values = 0;
         {
-            ExecutionPlanNode_ptr packet_borrow_secret_node =
-                ep.get_last_developed_node()->find_node_by_module_type(
-                    synapse::Module::ModuleType::tfhe_PacketBorrowNextSecret);
-            std::shared_ptr<PacketBorrowNextSecret>
-                packet_borrow_secret_module =
-                    std::static_pointer_cast<PacketBorrowNextSecret>(
-                        packet_borrow_secret_node->get_module());
-            number_of_values =
-                packet_borrow_secret_module->get_chunk_values_amount();
+            // Find the call for the chunks borrow,
+            //  by checking for its function_name in the BDD
+            std::vector<BDD::Node_ptr> prev_borrows =
+                get_prev_fn(ep, node, std::vector<std::string>{BDD::symbex::FN_BORROW_SECRET});
+            // There should be only one borrow!
+            assert(prev_borrows.size() == 1);
+            BDD::Node_ptr borrow_node = prev_borrows.at(0);
+            auto call_node = BDD::cast_node<BDD::Call>(borrow_node);
+            call_t call = call_node->get_call();
+            assert(call.function_name == BDD::symbex::FN_BORROW_SECRET);
+            assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+
+            auto _chunk =
+                call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+            auto chunk_width = _chunk->getWidth();
+            // FIXME This is specific for 1 Byte values
+            //  and will function wrongly if each value is not 1 Byte
+            number_of_values = chunk_width / 8;
         }
 
         std::cout << "Number of values: " << std::to_string(number_of_values)
@@ -125,8 +134,8 @@ private:
         std::cout << "Inflated both Operations modules" << std::endl;
 
         typedef klee::ref<klee::Expr> expr_ref;
-        std::vector<expr_ref> on_true_modifications;
-        std::vector<expr_ref> on_false_modifications;
+//        std::vector<expr_ref> on_true_modifications;
+//        std::vector<expr_ref> on_false_modifications;
 
         std::vector<expr_ref> on_true_modifications =
             _on_true_module->get_modifications_exprs();
@@ -176,7 +185,7 @@ private:
 //                auto ep_if_then_else = ep_if.add_leaves(then_else_leaves);
 
                 result.module = new_single_pbs;
-//                result.next_eps.push_back(ep_if_then_else);
+                result.next_eps.push_back(new_ep);
                 return result;
             }
 
