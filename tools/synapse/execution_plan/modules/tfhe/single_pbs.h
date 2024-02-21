@@ -134,8 +134,8 @@ private:
         std::cout << "Inflated both Operations modules" << std::endl;
 
         typedef klee::ref<klee::Expr> expr_ref;
-//        std::vector<expr_ref> on_true_modifications;
-//        std::vector<expr_ref> on_false_modifications;
+        std::vector<expr_ref> on_true_modifications;
+        std::vector<expr_ref> on_false_modifications;
 
         std::vector<expr_ref> on_true_modifications =
             _on_true_module->get_modifications_exprs();
