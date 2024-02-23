@@ -570,7 +570,7 @@ void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
 }
 
 void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
-                          const target::SinglePBS *node) {
+                          const target::MonoPBS *node) {
 }
 
 void tfheGenerator::visit(const ExecutionPlanNode *ep_node,

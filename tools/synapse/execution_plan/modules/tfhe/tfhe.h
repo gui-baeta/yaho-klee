@@ -9,7 +9,7 @@
 #include "packet_borrow_next_secret.h"
 #include "ternary_sum.h"
 #include "conditional.h"
-#include "single_pbs.h"
+#include "mono_pbs.h"
 #include "current_time.h"
 #include "dchain_allocate_new_index.h"
 #include "dchain_free_index.h"
@@ -58,7 +58,7 @@ public:
                    MODULE(PacketReturnChunk),
                    MODULE(TruthTablePBS),
                    MODULE(Conditional),
-                   MODULE(SinglePBS),
+                   MODULE(MonoPBS),
                    MODULE(TernarySum),
                    MODULE(If),
                    MODULE(Then),

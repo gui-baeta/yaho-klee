@@ -194,7 +194,7 @@ public:
     tfhe_HashObj,
     tfhe_TruthTablePBS,
     tfhe_Conditional,
-    tfhe_SinglePBS,
+    tfhe_MonoPBS,
     tfhe_TernarySum,
   };
 

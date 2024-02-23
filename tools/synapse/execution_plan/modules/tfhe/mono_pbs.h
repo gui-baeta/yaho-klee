@@ -55,22 +55,27 @@ namespace tfhe {
  * 2.: c = cond_val * (c + 2) + (not cond_val) * c
  *
  */
-class SinglePBS : public tfheModule {
+class MonoPBS : public tfheModule {
 private:
     klee::ref<klee::Expr> condition;
     klee::ref<klee::Expr> then_modification;
     klee::ref<klee::Expr> else_modification;
 
-public:
-    SinglePBS() : tfheModule(ModuleType::tfhe_SinglePBS, "SinglePBS") {}
+    /// The value that was changed
+    int changed_value = 0;
+    /// The condition depends on this value
+    int value_in_condition = 0;
 
-    SinglePBS(BDD::Node_ptr node, klee::ref<klee::Expr> _condition,
+public:
+    MonoPBS() : tfheModule(ModuleType::tfhe_MonoPBS, "MonoPBS") {}
+
+    MonoPBS(BDD::Node_ptr node, klee::ref<klee::Expr> _condition,
               klee::ref<klee::Expr> _then_modification,
-              klee::ref<klee::Expr> _else_modification)
-        : tfheModule(ModuleType::tfhe_SinglePBS, "SinglePBS", node),
+              klee::ref<klee::Expr> _else_modification, int _changed_value, int _value_in_condition)
+        : tfheModule(ModuleType::tfhe_MonoPBS, "MonoPBS", node),
           condition(_condition),
           then_modification(_then_modification),
-          else_modification(_else_modification) {}
+          else_modification(_else_modification), changed_value(_changed_value), value_in_condition(_value_in_condition) {}
 
 private:
     processing_result_t process(const ExecutionPlan &ep,
@@ -85,6 +90,19 @@ private:
         // At this point, we know it's a branch
         assert(!branch_node->get_condition().isNull());
         klee::ref<klee::Expr> _condition = branch_node->get_condition();
+
+        std::vector<int> values_in_condition = get_dependent_values(_condition);
+        std::cout << "----------------------- Condition values ------------------" << std::endl;
+        for (auto &val : values_in_condition) {
+            std::cout << "Dependent value: " << val << std::endl;
+        }
+        std::cout << "-----------------------------------------" << std::endl;
+
+        // Check if this condition depends on only one value
+        assert(values_in_condition.size() == 1);
+
+        // Save the value this condition depends on
+        int _value_in_condition = values_in_condition.at(0);
 
         std::cout << "In branch" << std::endl;
 
@@ -142,18 +160,24 @@ private:
 
         std::cout << "Got the modifications for each child" << std::endl;
 
-        for (int i = 0; i < number_of_values; ++i) {
-            std::cout << "-- Value " << std::to_string(i) << ":" << std::endl;
-            expr_ref on_true_mod = on_true_modifications[i];
-            expr_ref on_false_mod = on_false_modifications[i];
+        for (int n = 0; n < number_of_values; ++n) {
+            std::cout << "-- Value " << std::to_string(n) << ":" << std::endl;
+            expr_ref on_true_mod = on_true_modifications[n];
+            expr_ref on_false_mod = on_false_modifications[n];
 
             std::cout << "(" << generate_tfhe_code(on_true_mod) << ")"
                       << std::endl;
             std::cout << "(" << generate_tfhe_code(on_false_mod) << ")"
                       << std::endl;
 
+            // TODO
+            //  * We need to mark, somehow, that this value is already dealt with!!
+
             if (on_true_mod.isNull() && on_false_mod.isNull()) {
                 std::cout << "Both modifications are null" << std::endl;
+                /* No operations needed since both are null,
+                 *
+                 *  We continue to the next pair of values */
             } else if (kutil::solver_toolbox.are_exprs_always_equal(
                            on_true_mod, on_false_mod)) {
                 std::cout << "Both modifications are equal" << std::endl;
@@ -161,27 +185,29 @@ private:
                 //  Should this be done by the Change module itself?
             } else {
                 std::cout << "Both modifications are different" << std::endl;
-                auto new_single_pbs = std::make_shared<SinglePBS>(
-                    node, _condition, klee::ref<klee::Expr>(on_true_mod),
-                    klee::ref<klee::Expr>(on_false_mod));
-                ExecutionPlan new_ep =
-                    ep.add_leaf(new_single_pbs, nullptr, true);
 
-                result.module = new_single_pbs;
+                int _changed_value = n;
+
+                auto new_mono_pbs = std::make_shared<MonoPBS>(
+                    node, _condition, klee::ref<klee::Expr>(on_true_mod),
+                    klee::ref<klee::Expr>(on_false_mod), _changed_value, _value_in_condition);
+                // TODO If this value is not the last one to be iterated,
+                //  We DON'T mark it as "is_terminal".
+                //  We mark the processed_bdd_node as false and mark this value as solved,
+                //      so the next module knows it must take care of the next value
+                ExecutionPlan new_ep =
+                    ep.add_leaf(new_mono_pbs, nullptr, true);
+
+
+                result.module = new_mono_pbs;
                 result.next_eps.push_back(new_ep);
                 return result;
             }
 
             // TODO Check for differences in modifications from both sides.
-            //     - If they are the same, we add a "Change" module above this
-            //     one
-            //          * We need to mark, somehow, that this value is already
-            //          dealt with!!
-            //     - If there are differences, we spit out a SinglePBS module
-            //     and mark this value as dealt with
-            //                                           so to leave the rest of
-            //                                           the values for the next
-            //                                           module
+            //
+            //     - If there are differences, we spit out a MonoPBS module
+            //      and mark this value as dealt with so to leave the rest of the values for the next module
         }
 
         return result;
@@ -195,24 +221,24 @@ public:
 
     virtual Module_ptr clone() const override {
         auto cloned =
-            new SinglePBS(node, this->condition, this->then_modification,
-                          this->else_modification);
+            new MonoPBS(node, this->condition, this->then_modification,
+                          this->else_modification, this->changed_value, this->value_in_condition);
         return std::shared_ptr<Module>(cloned);
     }
 
     virtual bool equals(const Module *other) const override {
-        if (other->get_type() != type) {
+        if (other->get_type() != this->type) {
             return false;
         }
 
-        auto other_cast = static_cast<const SinglePBS *>(other);
+        auto other_cast = static_cast<const MonoPBS *>(other);
 
         if (!(kutil::solver_toolbox.are_exprs_always_equal(
-                  condition, other_cast->get_condition()) &&
+                  this->condition, other_cast->get_condition()) &&
               kutil::solver_toolbox.are_exprs_always_equal(
-                  then_modification, other_cast->get_then_modification()) &&
+                  this->then_modification, other_cast->get_then_modification()) &&
               kutil::solver_toolbox.are_exprs_always_equal(
-                  else_modification, other_cast->get_else_modification()))) {
+                  this->else_modification, other_cast->get_else_modification()))) {
             return false;
         }
 
@@ -220,12 +246,20 @@ public:
         auto other_else_modification = other_cast->get_else_modification();
 
         if (!kutil::solver_toolbox.are_exprs_always_equal(
-                then_modification, other_then_modification)) {
+                this->then_modification, other_then_modification)) {
             return false;
         }
 
         if (!kutil::solver_toolbox.are_exprs_always_equal(
-                else_modification, other_else_modification)) {
+                this->else_modification, other_else_modification)) {
+            return false;
+        }
+
+        if (this->changed_value != other_cast->get_changed_value()) {
+            return false;
+        }
+
+        if (this->value_in_condition != other_cast->get_value_in_condition()) {
             return false;
         }
 
@@ -242,6 +276,33 @@ public:
 
     const klee::ref<klee::Expr> &get_else_modification() const {
         return this->else_modification;
+    }
+
+    int get_changed_value() const {
+        return this->changed_value;
+    }
+
+    int get_value_in_condition() const {
+        return this->value_in_condition;
+    }
+
+    std::string changed_value_to_string() const {
+        return std::string("val") + std::to_string(this->changed_value);
+    }
+    std::string value_in_condition_to_string() const {
+        return std::string("val") + std::to_string(this->value_in_condition);
+    }
+    std::string condition_to_string() const {
+        // TODO
+        return "";
+    }
+    std::string then_modification_to_string() const {
+        // TODO
+        return "";
+    }
+    std::string else_modification_to_string() const {
+        // TODO
+        return "";
     }
 
     //
@@ -346,7 +407,7 @@ public:
     //    }
     //
     //    friend std::ostream &operator<<(std::ostream &os,
-    //                                    const SinglePBS &single_pbs) {
+    //                                    const MonoPBS &mono_pbs) {
     //        std::string str;
     //        llvm::raw_string_ostream s(str);
     //        conditional.get_condition()->print(s);

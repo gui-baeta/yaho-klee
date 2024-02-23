@@ -364,40 +364,69 @@ std::vector<value_conditions_t> preprocess(
     return value_conditions;
 }
 
-void produce_code_aux(value_conditions_t &value_condition,
-                      std::string &code) {
-    if (value_condition.then_branch) {
-        value_condition.then_branch;
-    }
-
-    if (value_condition.else_branch) {
-        value_condition.else_branch;
-    }
-}
-
-std::string produce_code(std::vector<value_conditions_t> &value_conditions,
-                         std::vector<ExecutionPlanNode_ptr> &all_conditions) {
+std::string produce_ep_code(const ExecutionPlan &ep) {
     std::string code("");
+    ExecutionPlanNode_ptr current_ep_node_ptr = ep.get_root();
 
-    for (auto &condition : all_conditions) {
-        if (condition->get_module_type() == synapse::Module::tfhe_Conditional) {
-            auto conditional_module =
-                std::static_pointer_cast<synapse::targets::tfhe::Conditional>(
-                    condition->get_module());
-            code += std::string("let cond_val") +
-                    std::to_string(condition->get_id()) + std::string(" = ") +
-                    conditional_module->generate_code(false) +
-                    std::string(";") + std::string("\n");
+    int number_of_values = 0;
+
+    while (true) {
+        std::cout << "current Module name:"
+                  << current_ep_node_ptr->get_module_name() << std::endl;
+        if (current_ep_node_ptr->get_module_type() ==
+            synapse::Module::tfhe_CurrentTime) {
+            /* Do Nothing */
+            std::cout << "Currently on CurrentTime. Do Nothing." << std::endl;
+
+        } else if (current_ep_node_ptr->get_module_type() ==
+                   synapse::Module::tfhe_PacketBorrowNextSecret) {
+            auto packet_borrow_secret_module = std::static_pointer_cast<
+                synapse::targets::tfhe::PacketBorrowNextSecret>(
+                current_ep_node_ptr->get_module());
+
+            number_of_values =
+                packet_borrow_secret_module->get_chunk_values_amount();
+
+            for (int n_value = 0; n_value < number_of_values; ++n_value) {
+                code += std::string("let val") + std::to_string(n_value) +
+                        std::string(";\n");
+            }
+
+            // TODO
+            //  (after printing the values) - Put code for counting time
+        } else if (current_ep_node_ptr->get_module_type() ==
+                   synapse::Module::tfhe_MonoPBS) {
+            auto monoPBS_module =
+                std::static_pointer_cast<synapse::targets::tfhe::MonoPBS>(
+                    current_ep_node_ptr->get_module());
+
+            /* In a mono PBS, the condition depends only on one value */
+
+            std::string value = monoPBS_module->changed_value_to_string();
+            std::string condition_value = monoPBS_module->value_in_condition_to_string();
+            std::string condition = monoPBS_module->condition_to_string();
+            std::string then_result =
+                monoPBS_module->then_modification_to_string();
+            std::string else_result =
+                monoPBS_module->else_modification_to_string();
+
+            code += std::string("let ") + value + std::string(" = ") +
+                    condition_value + std::string(".map(|") + condition_value +
+                    std::string("| if ") + condition + std::string(" {") +
+                    then_result + std::string("} else {") + else_result +
+                    std::string("});\n");
         }
         // TODO Add other types of Conditionals, such as multi PBS
+        if (current_ep_node_ptr->has_next()) {
+            current_ep_node_ptr = current_ep_node_ptr->get_next_sequential_ep_node();
+        } else {
+            break;
+        }
     }
 
-    // For each value [0, 1, ..]
-    for (int n_value = 0; n_value < value_conditions.size(); ++n_value) {
-        auto current_condition = value_conditions[n_value];
-
-        produce_code_aux(current_condition, code);
-    }
+    // TODO
+    //  (after everything is printed) - Put code that closes the counting of
+    //  time
 
     return code;
 }
@@ -409,33 +438,13 @@ void synthesize_code(const ExecutionPlan &ep) {
     code_generator.add_target(TargetList[0]);
     ExecutionPlan extracted_ep = code_generator.extract_at(ep, 0);
 
-    std::vector<ExecutionPlanNode_ptr> all_conditions;
-    std::vector<value_conditions_t> value_conditions =
-        preprocess(extracted_ep.get_root(), all_conditions);
-
     // Create file if not exists and open it with write permission
     std::ofstream myfile;
     myfile.open("main.rs");
-    std::string code = produce_code(value_conditions, all_conditions);
+    std::string code = produce_ep_code(extracted_ep);
     myfile << code;
     myfile.flush();
     std::cout << code << std::endl;
-
-    //    gen_data_t gen_data;
-    //    gen_data.chunk_values_amount = 0;
-    //    std::string code;
-    //    code = synthesize_code_aux(extracted_ep.get_root(), value_conditions,
-    //    gen_data); code += std::string("\n");
-    //
-    //    for (std::string condition : gen_data.conditions) {
-    //        myfile << condition;
-    //    }
-    //
-    //    myfile << code;
-    //
-    //    myfile << code;
-    //    myfile.flush();
-    //    std::cout << code << std::endl;
 
     myfile.close();
 }

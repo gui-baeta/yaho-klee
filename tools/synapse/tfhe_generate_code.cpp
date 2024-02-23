@@ -152,6 +152,22 @@ std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr, bool needs_clo
     return code;
 }
 
+std::vector<int> get_dependent_values(const klee::ref<klee::Expr> &expr) {
+    std::vector<int> dependent_values;
+    if (expr->getKind() == klee::Expr::Read) {
+        klee::ReadExpr* read_expr = dyn_cast<klee::ReadExpr>(expr);
+        klee::ConstantExpr* const_expr = dyn_cast<klee::ConstantExpr>(read_expr->index);
+        int index = const_expr->getZExtValue();
+        dependent_values.push_back(index);
+    } else {
+        for (unsigned i = 0; i < expr->getNumKids(); i++) {
+            std::vector<int> dependent_values_kid = get_dependent_values(expr->getKid(i));
+            dependent_values.insert(dependent_values.end(), dependent_values_kid.begin(), dependent_values_kid.end());
+        }
+    }
+    return dependent_values;
+}
+
 //std::string generate_tfhe_code(const ExecutionPlanNode_ptr &ep_node) {
 //    return std::string("Unimplemented");
 //}
