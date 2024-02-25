@@ -89,7 +89,7 @@ private:
         }
         // At this point, we know it's a branch
         assert(!branch_node->get_condition().isNull());
-        klee::ref<klee::Expr> _condition = branch_node->get_condition();
+        klee::ref<klee::Expr> _condition = klee::ref<klee::Expr>(branch_node->get_condition());
 
         std::vector<int> values_in_condition = get_dependent_values(_condition);
         std::cout << "----------------------- Condition values ------------------" << std::endl;
@@ -103,8 +103,6 @@ private:
 
         // Save the value this condition depends on
         int _value_in_condition = values_in_condition.at(0);
-
-        std::cout << "In branch" << std::endl;
 
         // Bail out if any of the children is a branch/conditional
         if (branch_node->get_on_true()->get_type() ==
@@ -138,18 +136,12 @@ private:
             number_of_values = chunk_width / 8;
         }
 
-        std::cout << "Number of values: " << std::to_string(number_of_values)
-                  << std::endl;
-
         std::shared_ptr<TernarySum> empty_operations_module =
             std::make_shared<TernarySum>();
-        std::cout << "1" << std::endl;
         std::shared_ptr<TernarySum> _on_true_module =
             empty_operations_module->inflate(ep, branch_node->get_on_true());
-        std::cout << "2" << std::endl;
         std::shared_ptr<TernarySum> _on_false_module =
             empty_operations_module->inflate(ep, branch_node->get_on_false());
-        std::cout << "Inflated both Operations modules" << std::endl;
 
         typedef klee::ref<klee::Expr> expr_ref;
 
@@ -157,8 +149,6 @@ private:
             _on_true_module->get_modifications_exprs();
         std::vector<expr_ref> on_false_modifications =
             _on_false_module->get_modifications_exprs();
-
-        std::cout << "Got the modifications for each child" << std::endl;
 
         for (int n = 0; n < number_of_values; ++n) {
             std::cout << "-- Value " << std::to_string(n) << ":" << std::endl;
@@ -191,6 +181,7 @@ private:
                 auto new_mono_pbs = std::make_shared<MonoPBS>(
                     node, _condition, klee::ref<klee::Expr>(on_true_mod),
                     klee::ref<klee::Expr>(on_false_mod), _changed_value, _value_in_condition);
+
                 // TODO If this value is not the last one to be iterated,
                 //  We DON'T mark it as "is_terminal".
                 //  We mark the processed_bdd_node as false and mark this value as solved,
@@ -293,8 +284,7 @@ public:
         return std::string("val") + std::to_string(this->value_in_condition);
     }
     std::string condition_to_string() const {
-        // TODO
-        return "";
+        return generate_code(true, false);
     }
     std::string then_modification_to_string() const {
         // TODO
@@ -305,100 +295,109 @@ public:
         return "";
     }
 
-    //
-    //    std::string generate_code(bool needs_cloning = true) const {
-    //        // Get the condition type
-    //        klee::Expr::Kind conditionType = this->condition->getKind();
-    //
-    //        std::cout << this->to_string() << std::endl;
-    //
-    //        // Initialize the Rust code string as the unit
-    //        std::string code = "()";
-    //
-    //        // Generate the corresponding Rust code based on the condition
-    //        type switch (conditionType) {
-    //        // Case for handling equality expressions.
-    //        case klee::Expr::Eq:
-    //            code = generate_tfhe_code(this->condition->getKid(1),
-    //            needs_cloning)
-    //                   + std::string(".eq(")
-    //                   + generate_tfhe_code(this->condition->getKid(0),
-    //                   needs_cloning) + std::string(")");
-    //            break;
-    //        // Case for handling unsigned less-than expressions.
-    //        case klee::Expr::Ult:
-    //            code = generate_tfhe_code(this->condition->getKid(1),
-    //            needs_cloning)
-    //                   + std::string(".ge(")
-    //                   + generate_tfhe_code(this->condition->getKid(0),
-    //                   needs_cloning) + std::string(")");
-    //            break;
-    //
-    //        // Case for handling unsigned less-than-or-equal-to expressions.
-    //        case klee::Expr::Ule:
-    //            code = generate_tfhe_code(this->condition->getKid(1),
-    //            needs_cloning)
-    //                   + std::string(".gt(")
-    //                   + generate_tfhe_code(this->condition->getKid(0),
-    //                   needs_cloning) + std::string(")");
-    //            break;
-    //
-    //        // Case for handling unsigned greater-than expressions.
-    //        case klee::Expr::Ugt:
-    //            code = generate_tfhe_code(this->condition->getKid(1),
-    //            needs_cloning)
-    //                   + std::string(".le(")
-    //                   + generate_tfhe_code(this->condition->getKid(0),
-    //                   needs_cloning) + std::string(")");
-    //            break;
-    //
-    //        // Fallthrough to Uge since there is no signed values in TFHE
-    //        case klee::Expr::Sge:
-    //            // TODO Look at
-    //            https://www.zama.ai/post/releasing-tfhe-rs-v0-4-0
-    //            //  and see how to use signed comparisons
-    //            code = generate_tfhe_code(this->condition->getKid(1),
-    //            needs_cloning)
-    //                   + std::string(".lt(")
-    //                   + generate_tfhe_code(this->condition->getKid(0),
-    //                   needs_cloning) + std::string(")");
-    //            break;
-    //        // Case for handling unsigned greater-than-or-equal-to
-    //        expressions. case klee::Expr::Uge:
-    //            code = generate_tfhe_code(this->condition->getKid(1),
-    //            needs_cloning)
-    //                   + std::string(".lt(")
-    //                   + generate_tfhe_code(this->condition->getKid(0),
-    //                   needs_cloning) + std::string(")");
-    //            break;
-    //
-    //        // Case for handling signed less-than expressions.
-    //        case klee::Expr::Slt:
-    //            code = generate_tfhe_code(this->condition->getKid(1),
-    //            needs_cloning)
-    //                   + std::string(".ge(")
-    //                   + generate_tfhe_code(this->condition->getKid(0),
-    //                   needs_cloning) + std::string(")");
-    //            break;
-    //
-    //        // Case for handling signed less-than-or-equal-to expressions.
-    //        case klee::Expr::Sle:
-    //            code = generate_tfhe_code(this->condition->getKid(1),
-    //            needs_cloning)
-    //                   + std::string(".gt(")
-    //                   + generate_tfhe_code(this->condition->getKid(0),
-    //                   needs_cloning) + std::string(")");
-    //            break;
-    //        // TODO Add more cases as needed for other condition types
-    //        default:
-    //            std::cerr << "Unsupported condition type: " << conditionType
-    //                      << std::endl;
-    //            exit(1);
-    //        }
-    //
-    //        return code;
-    //    }
-    //
+    // TODO This needs to be corrected and used in the condition_to_string
+    std::string generate_code(bool using_operators = false, bool needs_cloning = true) const {
+        // Get the condition type
+        klee::Expr::Kind conditionType = this->condition->getKind();
+
+//        std::cout << this->to_string() << std::endl;
+
+        // Initialize the Rust code string as the unit
+        std::string code = "()";
+
+        std::string closing_character = using_operators ? "" : ")";
+
+        // Generate the corresponding Rust code based on the condition
+        switch (conditionType) {
+        // Case for handling equality expressions.
+        case klee::Expr::Eq:
+            std::string operator_str = using_operators ? "==" : ".eq(";
+            code = generate_tfhe_code(this->condition->getKid(1),
+            needs_cloning)
+                   + operator_str
+                   + generate_tfhe_code(this->condition->getKid(0),
+                   needs_cloning) + closing_character;
+            break;
+        // Case for handling unsigned less-than expressions.
+        case klee::Expr::Ult:
+            std::string operator_str = using_operators ? ">" : ".ge(";
+            code = generate_tfhe_code(this->condition->getKid(1),
+            needs_cloning)
+                   + operator_str
+                   + generate_tfhe_code(this->condition->getKid(0),
+                   needs_cloning) + closing_character;
+            break;
+
+        // Case for handling unsigned less-than-or-equal-to expressions.
+        case klee::Expr::Ule:
+            std::string operator_str = using_operators ? ">" : ".gt(";
+            code = generate_tfhe_code(this->condition->getKid(1),
+            needs_cloning)
+                   + operator_str
+                   + generate_tfhe_code(this->condition->getKid(0),
+                   needs_cloning) + closing_character;
+            break;
+
+        // Case for handling unsigned greater-than expressions.
+        case klee::Expr::Ugt:
+            std::string operator_str = using_operators ? "<=" : ".le(";
+            code = generate_tfhe_code(this->condition->getKid(1),
+            needs_cloning)
+                   + operator_str
+                   + generate_tfhe_code(this->condition->getKid(0),
+                   needs_cloning) + closing_character;
+            break;
+
+        // Fallthrough to Uge since there is no signed values in TFHE
+        case klee::Expr::Sge:
+            // TODO Look at https://www.zama.ai/post/releasing-tfhe-rs-v0-4-0
+            //  and see how to use signed comparisons
+            std::string operator_str = using_operators ? "<" : ".lt(";
+            code = generate_tfhe_code(this->condition->getKid(1),
+            needs_cloning)
+                   + operator_str
+                   + generate_tfhe_code(this->condition->getKid(0),
+                   needs_cloning) + closing_character;
+            break;
+        // Case for handling unsigned greater-than-or-equal-to expressions.
+        case klee::Expr::Uge:
+            std::string operator_str = using_operators ? "<" : ".lt(";
+            code = generate_tfhe_code(this->condition->getKid(1),
+            needs_cloning)
+                   + operator_str
+                   + generate_tfhe_code(this->condition->getKid(0),
+                   needs_cloning) + closing_character;
+            break;
+
+        // Case for handling signed less-than expressions.
+        case klee::Expr::Slt:
+            std::string operator_str = using_operators ? ">=" : ".ge(";
+            code = generate_tfhe_code(this->condition->getKid(1),
+            needs_cloning)
+                   + operator_str
+                   + generate_tfhe_code(this->condition->getKid(0),
+                   needs_cloning) + closing_character;
+            break;
+
+        // Case for handling signed less-than-or-equal-to expressions.
+        case klee::Expr::Sle:
+            std::string operator_str = using_operators ? ">" : ".gt(";
+            code = generate_tfhe_code(this->condition->getKid(1),
+            needs_cloning)
+                   + operator_str
+                   + generate_tfhe_code(this->condition->getKid(0),
+                   needs_cloning) + closing_character;
+            break;
+        // TODO Add more cases as needed for other condition types
+        default:
+            std::cerr << "Unsupported condition type: " << conditionType
+                      << std::endl;
+            exit(1);
+        }
+
+        return code;
+    }
+
     //    std::string to_string() const {
     //        std::string str;
     //        llvm::raw_string_ostream s(str);
