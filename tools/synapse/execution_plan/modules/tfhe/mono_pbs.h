@@ -136,11 +136,11 @@ private:
             number_of_values = chunk_width / 8;
         }
 
-        std::shared_ptr<TernarySum> empty_operations_module =
-            std::make_shared<TernarySum>();
-        std::shared_ptr<TernarySum> _on_true_module =
+        std::shared_ptr<Operation> empty_operations_module =
+            std::make_shared<Operation>();
+        std::shared_ptr<Operation> _on_true_module =
             empty_operations_module->inflate(ep, branch_node->get_on_true());
-        std::shared_ptr<TernarySum> _on_false_module =
+        std::shared_ptr<Operation> _on_false_module =
             empty_operations_module->inflate(ep, branch_node->get_on_false());
 
         typedef klee::ref<klee::Expr> expr_ref;

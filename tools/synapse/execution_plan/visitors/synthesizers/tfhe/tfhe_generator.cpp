@@ -574,7 +574,7 @@ void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
 }
 
 void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
-                         const target::TernarySum *node) {
+                         const target::Operation *node) {
   nf_process_builder.indent();
   nf_process_builder.append("HE Operation");
   nf_process_builder.append(";");

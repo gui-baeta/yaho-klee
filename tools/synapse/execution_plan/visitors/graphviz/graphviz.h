@@ -257,7 +257,7 @@ public:
   DECLARE_VISIT(targets::tfhe::TruthTablePBS)
   DECLARE_VISIT(targets::tfhe::Conditional)
   DECLARE_VISIT(targets::tfhe::MonoPBS)
-  DECLARE_VISIT(targets::tfhe::TernarySum)
+  DECLARE_VISIT(targets::tfhe::Operation)
   DECLARE_VISIT(targets::tfhe::If)
   DECLARE_VISIT(targets::tfhe::Then)
   DECLARE_VISIT(targets::tfhe::Else)

@@ -67,7 +67,7 @@ public:
   void visit(const ExecutionPlanNode *ep_node,
              const target::MonoPBS *node) override; // TODO GUI continue
   void visit(const ExecutionPlanNode *ep_node,
-             const target::TernarySum *node) override; // TODO GUI continue
+             const target::Operation *node) override; // TODO GUI continue
   void visit(const ExecutionPlanNode *ep_node,
              const target::PacketReturnChunk *node) override;
   void visit(const ExecutionPlanNode *ep_node,

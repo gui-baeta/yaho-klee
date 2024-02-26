@@ -163,7 +163,7 @@ class PacketReturnChunk;
 class TruthTablePBS;
 class Conditional;
 class MonoPBS;
-class TernarySum;
+class Operation;
 class If;
 class Then;
 class Else;
@@ -372,7 +372,7 @@ public:
   VISIT(targets::tfhe::TruthTablePBS)
   VISIT(targets::tfhe::Conditional)
   VISIT(targets::tfhe::MonoPBS)
-  VISIT(targets::tfhe::TernarySum)
+  VISIT(targets::tfhe::Operation)
   VISIT(targets::tfhe::If)
   VISIT(targets::tfhe::Then)
   VISIT(targets::tfhe::Else)

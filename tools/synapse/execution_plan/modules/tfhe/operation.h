@@ -8,19 +8,19 @@ namespace targets {
 namespace tfhe {
 
 // TODO Rename this class to SumInConditionalBranch
-class TernarySum : public tfheModule {
+class Operation : public tfheModule {
 private:
     addr_t chunk_addr;
     klee::ref<klee::Expr> original_chunk;
     std::vector<modification_t> modifications;
 
 public:
-    TernarySum() : tfheModule(ModuleType::tfhe_TernarySum, "TernarySum") {}
+    Operation() : tfheModule(ModuleType::tfhe_Operation, "Operation") {}
 
-    TernarySum(BDD::Node_ptr node, addr_t _chunk_addr,
+    Operation(BDD::Node_ptr node, addr_t _chunk_addr,
                klee::ref<klee::Expr> _original_chunk,
                const std::vector<modification_t> &_modifications)
-        : tfheModule(ModuleType::tfhe_TernarySum, "TernarySum", node),
+        : tfheModule(ModuleType::tfhe_Operation, "Operation", node),
           chunk_addr(_chunk_addr),
           original_chunk(_original_chunk),
           modifications(_modifications) {}
@@ -106,7 +106,7 @@ public:
         auto _modifications =
             build_modifications(_original_chunk, _current_chunk);
 
-        auto new_module = std::make_shared<TernarySum>(
+        auto new_module = std::make_shared<Operation>(
             node, _chunk_addr, _original_chunk, _modifications);
         auto new_ep = ep.add_leaf(new_module, node->get_next());
 
@@ -116,7 +116,7 @@ public:
         return result;
     }
 
-    std::shared_ptr<TernarySum> inflate(const ExecutionPlan &ep,
+    std::shared_ptr<Operation> inflate(const ExecutionPlan &ep,
                                 BDD::Node_ptr node) {
         // Check if this is a valid return chunk BDD node
         auto casted = BDD::cast_node<BDD::Call>(node);
@@ -138,7 +138,7 @@ public:
         auto _modifications =
             build_modifications(_original_chunk, _current_chunk);
 
-        auto new_module = std::make_shared<TernarySum>(
+        auto new_module = std::make_shared<Operation>(
             node, _chunk_addr, _original_chunk, _modifications);
 
         return new_module;
@@ -152,7 +152,7 @@ public:
 
     virtual Module_ptr clone() const override {
         auto cloned =
-            new TernarySum(node, chunk_addr, original_chunk, modifications);
+            new Operation(node, chunk_addr, original_chunk, modifications);
         return std::shared_ptr<Module>(cloned);
     }
 
@@ -161,7 +161,7 @@ public:
             return false;
         }
 
-        auto other_cast = static_cast<const TernarySum *>(other);
+        auto other_cast = static_cast<const Operation *>(other);
 
         if (chunk_addr != other_cast->get_chunk_addr()) {
             return false;

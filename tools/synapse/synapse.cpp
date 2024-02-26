@@ -213,12 +213,12 @@ std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
         code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
 
     } else if (ep_node->get_module()->get_type() ==
-               synapse::Module::ModuleType::tfhe_TernarySum) {
+               synapse::Module::ModuleType::tfhe_Operation) {
         gen_data.visited_ep_nodes.push_back(ep_node->get_id());
-        auto ternary_sum_module =
-            std::static_pointer_cast<synapse::targets::tfhe::TernarySum>(
+        auto operation_module =
+            std::static_pointer_cast<synapse::targets::tfhe::Operation>(
                 ep_node->get_module());
-        code += ternary_sum_module->generate_code();
+        code += operation_module->generate_code();
 
     } else if (ep_node->get_module()->get_type() ==
                synapse::Module::tfhe_PacketBorrowNextChunk) {
@@ -314,13 +314,13 @@ void preprocess_aux(const ExecutionPlanNode_ptr &ep_node,
                        all_conditions);
 
         // Modification EP node
-    } else if (ep_node->get_module_type() == synapse::Module::tfhe_TernarySum) {
-        auto ternary_sum_module =
-            std::static_pointer_cast<synapse::targets::tfhe::TernarySum>(
+    } else if (ep_node->get_module_type() == synapse::Module::tfhe_Operation) {
+        auto operation_module =
+            std::static_pointer_cast<synapse::targets::tfhe::Operation>(
                 ep_node->get_module());
 
         value_conditions.modification =
-            ternary_sum_module->get_modification_of(value);
+            operation_module->get_modification_of(value);
         std::cout << "After getting modification.... Modification: "
                   << generate_tfhe_code(value_conditions.modification)
                   << std::endl;
@@ -365,7 +365,7 @@ std::vector<value_conditions_t> preprocess(
 }
 
 std::string produce_ep_code(const ExecutionPlan &ep) {
-    std::string code("");
+    std::ostream code(std::cout.rdbuf());
     ExecutionPlanNode_ptr current_ep_node_ptr = ep.get_root();
 
     int number_of_values = 0;
@@ -388,8 +388,7 @@ std::string produce_ep_code(const ExecutionPlan &ep) {
                 packet_borrow_secret_module->get_chunk_values_amount();
 
             for (int n_value = 0; n_value < number_of_values; ++n_value) {
-                code += std::string("let val") + std::to_string(n_value) +
-                        std::string(";\n");
+                code << "let val" << n_value << ";" << std::endl;
             }
 
             // TODO
@@ -402,33 +401,24 @@ std::string produce_ep_code(const ExecutionPlan &ep) {
 
             /* In a mono PBS, the condition depends only on one value */
 
-            std::string value = monoPBS_module->changed_value_to_string();
-            std::string condition_value = monoPBS_module->value_in_condition_to_string();
-            std::string condition = monoPBS_module->condition_to_string();
-            std::string then_result =
-                monoPBS_module->then_modification_to_string();
-            std::string else_result =
-                monoPBS_module->else_modification_to_string();
-
-            code += std::string("let ") + value + std::string(" = ") +
-                    condition_value + std::string(".map(|") + condition_value +
-                    std::string("| if ") + condition + std::string(" {") +
-                    then_result + std::string("} else {") + else_result +
-                    std::string("});\n");
+            code << monoPBS_module;
         }
         // TODO Add other types of Conditionals, such as multi PBS
         if (current_ep_node_ptr->has_next()) {
-            current_ep_node_ptr = current_ep_node_ptr->get_next_sequential_ep_node();
+            current_ep_node_ptr =
+                current_ep_node_ptr->get_next_sequential_ep_node();
         } else {
             break;
         }
     }
 
     // TODO
-    //  (after everything is printed) - Put code that closes the counting of
-    //  time
+    //  (after everything is printed) - Put code that closes the counting of time
 
-    return code;
+
+    std::stringstream ss;
+    ss << code.rdbuf();
+    return ss.str();
 }
 
 void synthesize_code(const ExecutionPlan &ep) {
@@ -442,9 +432,9 @@ void synthesize_code(const ExecutionPlan &ep) {
     std::ofstream myfile;
     myfile.open("main.rs");
     std::string code = produce_ep_code(extracted_ep);
+    std::cout << code << std::endl;
     myfile << code;
     myfile.flush();
-    std::cout << code << std::endl;
 
     myfile.close();
 }

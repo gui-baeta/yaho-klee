@@ -195,7 +195,7 @@ public:
     tfhe_TruthTablePBS,
     tfhe_Conditional,
     tfhe_MonoPBS,
-    tfhe_TernarySum,
+    tfhe_Operation,
   };
 
 protected:

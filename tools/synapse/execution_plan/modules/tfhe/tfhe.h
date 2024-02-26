@@ -7,7 +7,7 @@
 #include "cht_find_backend.h"
 #include "packet_borrow_next_chunk.h"
 #include "packet_borrow_next_secret.h"
-#include "ternary_sum.h"
+#include "operation.h"
 #include "conditional.h"
 #include "mono_pbs.h"
 #include "current_time.h"
@@ -59,7 +59,7 @@ public:
                    MODULE(TruthTablePBS),
                    MODULE(Conditional),
                    MODULE(MonoPBS),
-                   MODULE(TernarySum),
+                   MODULE(Operation),
                    MODULE(If),
                    MODULE(Then),
                    MODULE(Else),
