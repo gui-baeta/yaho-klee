@@ -70,12 +70,15 @@ public:
     MonoPBS() : tfheModule(ModuleType::tfhe_MonoPBS, "MonoPBS") {}
 
     MonoPBS(BDD::Node_ptr node, klee::ref<klee::Expr> _condition,
-              klee::ref<klee::Expr> _then_modification,
-              klee::ref<klee::Expr> _else_modification, int _changed_value, int _value_in_condition)
+            klee::ref<klee::Expr> _then_modification,
+            klee::ref<klee::Expr> _else_modification, int _changed_value,
+            int _value_in_condition)
         : tfheModule(ModuleType::tfhe_MonoPBS, "MonoPBS", node),
           condition(_condition),
           then_modification(_then_modification),
-          else_modification(_else_modification), changed_value(_changed_value), value_in_condition(_value_in_condition) {}
+          else_modification(_else_modification),
+          changed_value(_changed_value),
+          value_in_condition(_value_in_condition) {}
 
 private:
     processing_result_t process(const ExecutionPlan &ep,
@@ -89,10 +92,13 @@ private:
         }
         // At this point, we know it's a branch
         assert(!branch_node->get_condition().isNull());
-        klee::ref<klee::Expr> _condition = klee::ref<klee::Expr>(branch_node->get_condition());
+        klee::ref<klee::Expr> _condition =
+            klee::ref<klee::Expr>(branch_node->get_condition());
 
         std::vector<int> values_in_condition = get_dependent_values(_condition);
-        std::cout << "----------------------- Condition values ------------------" << std::endl;
+        std::cout
+            << "----------------------- Condition values ------------------"
+            << std::endl;
         for (auto &val : values_in_condition) {
             std::cout << "Dependent value: " << val << std::endl;
         }
@@ -118,15 +124,17 @@ private:
         {
             // Find the call for the chunks borrow,
             //  by checking for its function_name in the BDD
-            std::vector<BDD::Node_ptr> prev_borrows =
-                get_prev_fn(ep, node, std::vector<std::string>{BDD::symbex::FN_BORROW_SECRET});
+            std::vector<BDD::Node_ptr> prev_borrows = get_prev_fn(
+                ep, node,
+                std::vector<std::string>{BDD::symbex::FN_BORROW_SECRET});
             // There should be only one borrow!
             assert(prev_borrows.size() == 1);
             BDD::Node_ptr borrow_node = prev_borrows.at(0);
             auto call_node = BDD::cast_node<BDD::Call>(borrow_node);
             call_t call = call_node->get_call();
             assert(call.function_name == BDD::symbex::FN_BORROW_SECRET);
-            assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+            assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA]
+                        .second.isNull());
 
             auto _chunk =
                 call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
@@ -161,7 +169,8 @@ private:
                       << std::endl;
 
             // TODO
-            //  * We need to mark, somehow, that this value is already dealt with!!
+            //  * We need to mark, somehow, that this value is already dealt
+            //  with!!
 
             if (on_true_mod.isNull() && on_false_mod.isNull()) {
                 std::cout << "Both modifications are null" << std::endl;
@@ -172,7 +181,8 @@ private:
                            on_true_mod, on_false_mod)) {
                 std::cout << "Both modifications are equal" << std::endl;
                 // TODO Add a Change module
-                //  Should this be done by the Change module itself?
+                //  Should this be done by the Change module, and not by the
+                //  MonoPBS?
             } else {
                 std::cout << "Both modifications are different" << std::endl;
 
@@ -180,25 +190,21 @@ private:
 
                 auto new_mono_pbs = std::make_shared<MonoPBS>(
                     node, _condition, klee::ref<klee::Expr>(on_true_mod),
-                    klee::ref<klee::Expr>(on_false_mod), _changed_value, _value_in_condition);
+                    klee::ref<klee::Expr>(on_false_mod), _changed_value,
+                    _value_in_condition);
 
                 // TODO If this value is not the last one to be iterated,
                 //  We DON'T mark it as "is_terminal".
-                //  We mark the processed_bdd_node as false and mark this value as solved,
-                //      so the next module knows it must take care of the next value
-                ExecutionPlan new_ep =
-                    ep.add_leaf(new_mono_pbs, nullptr, true);
-
+                //  We pass the argument "processed_bdd_node" as false and mark
+                //  this value as solved,
+                //      so the next module knows it must
+                //      take care of the next value
+                ExecutionPlan new_ep = ep.add_leaf(new_mono_pbs, nullptr, true, true);
 
                 result.module = new_mono_pbs;
                 result.next_eps.push_back(new_ep);
                 return result;
             }
-
-            // TODO Check for differences in modifications from both sides.
-            //
-            //     - If there are differences, we spit out a MonoPBS module
-            //      and mark this value as dealt with so to leave the rest of the values for the next module
         }
 
         return result;
@@ -213,7 +219,8 @@ public:
     virtual Module_ptr clone() const override {
         auto cloned =
             new MonoPBS(node, this->condition, this->then_modification,
-                          this->else_modification, this->changed_value, this->value_in_condition);
+                        this->else_modification, this->changed_value,
+                        this->value_in_condition);
         return std::shared_ptr<Module>(cloned);
     }
 
@@ -227,9 +234,11 @@ public:
         if (!(kutil::solver_toolbox.are_exprs_always_equal(
                   this->condition, other_cast->get_condition()) &&
               kutil::solver_toolbox.are_exprs_always_equal(
-                  this->then_modification, other_cast->get_then_modification()) &&
+                  this->then_modification,
+                  other_cast->get_then_modification()) &&
               kutil::solver_toolbox.are_exprs_always_equal(
-                  this->else_modification, other_cast->get_else_modification()))) {
+                  this->else_modification,
+                  other_cast->get_else_modification()))) {
             return false;
         }
 
@@ -269,13 +278,9 @@ public:
         return this->else_modification;
     }
 
-    int get_changed_value() const {
-        return this->changed_value;
-    }
+    int get_changed_value() const { return this->changed_value; }
 
-    int get_value_in_condition() const {
-        return this->value_in_condition;
-    }
+    int get_value_in_condition() const { return this->value_in_condition; }
 
     std::string changed_value_to_string() const {
         return std::string("val") + std::to_string(this->changed_value);
@@ -286,109 +291,131 @@ public:
     std::string condition_to_string() const {
         return generate_code(true, false);
     }
-    std::string then_modification_to_string() const {
-        // TODO
-        return "";
+    std::string then_modification_to_string(bool needs_cloning = true) const {
+        return generate_tfhe_code(this->then_modification, needs_cloning);
     }
-    std::string else_modification_to_string() const {
-        // TODO
-        return "";
+    std::string else_modification_to_string(bool needs_cloning = true) const {
+        return generate_tfhe_code(this->else_modification, needs_cloning);
     }
 
-    // TODO This needs to be corrected and used in the condition_to_string
-    std::string generate_code(bool using_operators = false, bool needs_cloning = true) const {
+    std::string to_string() const {
+        std::ostringstream s;
+
+        std::string value = this->changed_value_to_string();
+        std::string condition_value = this->value_in_condition_to_string();
+        // TODO I Could potentially flip this condition if there is no Then modification
+        std::string condition = this->condition_to_string();
+        std::string then_result = this->then_modification_to_string(false);
+        std::string else_result = this->else_modification_to_string(false);
+
+        s << "let " << value << " = " << condition_value << ".map(|"
+          << condition_value << "| if " << condition << " {" << then_result
+          << "}";
+
+        if (!else_result.empty()) {
+            s << " else {" << else_result << "}";
+        }
+
+        s << ");" << std::endl;
+
+        return s.str();
+    }
+
+    std::string generate_code(bool using_operators = false,
+                              bool needs_cloning = true) const {
         // Get the condition type
         klee::Expr::Kind conditionType = this->condition->getKind();
 
-//        std::cout << this->to_string() << std::endl;
+        //        std::cout << this->to_string() << std::endl;
 
         // Initialize the Rust code string as the unit
         std::string code = "()";
 
         std::string closing_character = using_operators ? "" : ")";
+        std::string operator_str = "";
 
         // Generate the corresponding Rust code based on the condition
         switch (conditionType) {
         // Case for handling equality expressions.
         case klee::Expr::Eq:
-            std::string operator_str = using_operators ? "==" : ".eq(";
-            code = generate_tfhe_code(this->condition->getKid(1),
-            needs_cloning)
-                   + operator_str
-                   + generate_tfhe_code(this->condition->getKid(0),
-                   needs_cloning) + closing_character;
+            operator_str = using_operators ? " == " : ".eq(";
+            code =
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                closing_character;
             break;
         // Case for handling unsigned less-than expressions.
         case klee::Expr::Ult:
-            std::string operator_str = using_operators ? ">" : ".ge(";
-            code = generate_tfhe_code(this->condition->getKid(1),
-            needs_cloning)
-                   + operator_str
-                   + generate_tfhe_code(this->condition->getKid(0),
-                   needs_cloning) + closing_character;
+            operator_str = using_operators ? " > " : ".ge(";
+            code =
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                closing_character;
             break;
 
         // Case for handling unsigned less-than-or-equal-to expressions.
         case klee::Expr::Ule:
-            std::string operator_str = using_operators ? ">" : ".gt(";
-            code = generate_tfhe_code(this->condition->getKid(1),
-            needs_cloning)
-                   + operator_str
-                   + generate_tfhe_code(this->condition->getKid(0),
-                   needs_cloning) + closing_character;
+            operator_str = using_operators ? " > " : ".gt(";
+            code =
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                closing_character;
             break;
 
         // Case for handling unsigned greater-than expressions.
         case klee::Expr::Ugt:
-            std::string operator_str = using_operators ? "<=" : ".le(";
-            code = generate_tfhe_code(this->condition->getKid(1),
-            needs_cloning)
-                   + operator_str
-                   + generate_tfhe_code(this->condition->getKid(0),
-                   needs_cloning) + closing_character;
+            operator_str = using_operators ? " <= " : ".le(";
+            code =
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                closing_character;
             break;
 
         // Fallthrough to Uge since there is no signed values in TFHE
         case klee::Expr::Sge:
             // TODO Look at https://www.zama.ai/post/releasing-tfhe-rs-v0-4-0
             //  and see how to use signed comparisons
-            std::string operator_str = using_operators ? "<" : ".lt(";
-            code = generate_tfhe_code(this->condition->getKid(1),
-            needs_cloning)
-                   + operator_str
-                   + generate_tfhe_code(this->condition->getKid(0),
-                   needs_cloning) + closing_character;
+            operator_str = using_operators ? " < " : ".lt(";
+            code =
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                closing_character;
             break;
         // Case for handling unsigned greater-than-or-equal-to expressions.
         case klee::Expr::Uge:
-            std::string operator_str = using_operators ? "<" : ".lt(";
-            code = generate_tfhe_code(this->condition->getKid(1),
-            needs_cloning)
-                   + operator_str
-                   + generate_tfhe_code(this->condition->getKid(0),
-                   needs_cloning) + closing_character;
+            operator_str = using_operators ? " < " : ".lt(";
+            code =
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                closing_character;
             break;
 
         // Case for handling signed less-than expressions.
         case klee::Expr::Slt:
-            std::string operator_str = using_operators ? ">=" : ".ge(";
-            code = generate_tfhe_code(this->condition->getKid(1),
-            needs_cloning)
-                   + operator_str
-                   + generate_tfhe_code(this->condition->getKid(0),
-                   needs_cloning) + closing_character;
+            operator_str = using_operators ? " >= " : ".ge(";
+            code =
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                closing_character;
             break;
 
         // Case for handling signed less-than-or-equal-to expressions.
         case klee::Expr::Sle:
-            std::string operator_str = using_operators ? ">" : ".gt(";
-            code = generate_tfhe_code(this->condition->getKid(1),
-            needs_cloning)
-                   + operator_str
-                   + generate_tfhe_code(this->condition->getKid(0),
-                   needs_cloning) + closing_character;
+            operator_str = using_operators ? " > " : ".gt(";
+            code =
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                closing_character;
             break;
-        // TODO Add more cases as needed for other condition types
+        // FIXME Add more cases as needed for other condition types
         default:
             std::cerr << "Unsupported condition type: " << conditionType
                       << std::endl;
@@ -398,21 +425,21 @@ public:
         return code;
     }
 
-    //    std::string to_string() const {
-    //        std::string str;
-    //        llvm::raw_string_ostream s(str);
-    //        this->get_condition()->print(s);
-    //        return s.str();
-    //    }
-    //
-    //    friend std::ostream &operator<<(std::ostream &os,
-    //                                    const MonoPBS &mono_pbs) {
-    //        std::string str;
-    //        llvm::raw_string_ostream s(str);
-    //        conditional.get_condition()->print(s);
-    //        os << s.str();
-    //        return os;
-    //    }
+    std::string to_string_debug() const {
+        std::string str;
+        llvm::raw_string_ostream s(str);
+        s << "MonoPBS(" << this->condition_to_string() << ", "
+          << this->then_modification_to_string() << ", "
+          << this->else_modification_to_string() << ", "
+          << this->changed_value_to_string() << ", "
+          << this->value_in_condition_to_string() << ")";
+        return s.str();
+    }
+
+    friend std::ostream &operator<<(std::ostream &os, std::shared_ptr<MonoPBS> const &mono_pbs) {
+        os << mono_pbs->to_string();
+        return os;
+    }
 };
 }  // namespace tfhe
 }  // namespace targets

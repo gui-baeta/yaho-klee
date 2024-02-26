@@ -9,6 +9,7 @@ namespace synapse {
 namespace targets {
 namespace tfhe {
 
+/// Flattened if-then-else
 class If : public tfheModule {
 private:
   klee::ref<klee::Expr> condition;
@@ -36,6 +37,9 @@ private:
 
     assert(!casted->get_condition().isNull());
     auto _condition = casted->get_condition();
+
+
+    // TODO Initially, this if module will test the node in a similar manner to the mono_pbs Module.
 
     auto new_if_module = std::make_shared<If>(node, _condition);
     auto new_then_module = std::make_shared<Then>(node);
