@@ -70,11 +70,17 @@ public:
     void visit(const ExecutionPlanNode *ep_node,
                const target::MonoPBS *node) override;
     void visit(const ExecutionPlanNode *ep_node,
+               const target::Change *node) override;
+    void visit(const ExecutionPlanNode *ep_node,
+               const target::NoChange *node) override;
+    void visit(const ExecutionPlanNode *ep_node,
                const target::AidedUnivariatePBS *node) override;
     void visit(const ExecutionPlanNode *ep_node,
                const target::Operation *node) override;
     void visit(const ExecutionPlanNode *ep_node,
                const target::PacketReturnChunk *node) override;
+    void visit(const ExecutionPlanNode *ep_node,
+           const target::NoOpPacketReturnChunk *node) override;
     void visit(const ExecutionPlanNode *ep_node,
                const target::If *node) override;
     void visit(const ExecutionPlanNode *ep_node,

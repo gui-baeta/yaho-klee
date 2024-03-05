@@ -11,8 +11,16 @@ namespace synapse {
 namespace targets {
 namespace tfhe {
 
-class MonoPBS : public tfheModule {
+class AidedUnivariatePBS : public tfheModule {
 private:
+    // TODO Needs something else here
+    //  For an input like:
+    //      let b = (2 + b) * pbs(c > 5)
+    //  It, maybe, could work like so: Operation * UnivariatePBS
+    //  So, we should have:
+    //      - the "side inline then modification" as an attribute of this class:
+    //      Type klee::Expr
+    //      - the "pbs condition" as an attribute of this class: Type klee::Expr
     klee::ref<klee::Expr> condition;
     klee::ref<klee::Expr> then_modification;
     klee::ref<klee::Expr> else_modification;
@@ -23,13 +31,16 @@ private:
     int value_in_condition = 0;
 
 public:
-    MonoPBS() : tfheModule(ModuleType::tfhe_MonoPBS, "MonoPBS") {}
+    AidedUnivariatePBS()
+        : tfheModule(ModuleType::tfhe_AidedUnivariatePBS,
+                     "AidedUnivariatePBS") {}
 
-    MonoPBS(BDD::Node_ptr node, klee::ref<klee::Expr> _condition,
-            klee::ref<klee::Expr> _then_modification,
-            klee::ref<klee::Expr> _else_modification, int _changed_value,
-            int _value_in_condition)
-        : tfheModule(ModuleType::tfhe_MonoPBS, "MonoPBS", node),
+    AidedUnivariatePBS(BDD::Node_ptr node, klee::ref<klee::Expr> _condition,
+                       klee::ref<klee::Expr> _then_modification,
+                       klee::ref<klee::Expr> _else_modification,
+                       int _changed_value, int _value_in_condition)
+        : tfheModule(ModuleType::tfhe_AidedUnivariatePBS, "AidedUnivariatePBS",
+                     node),
           condition(_condition),
           then_modification(_then_modification),
           else_modification(_else_modification),
@@ -44,7 +55,7 @@ private:
         const BDD::node_id_t this_node_id = node->get_id();
 
         // TODO This module expects that the Branch Node has
-        // "packet_return_chunk" as children.
+        //  "packet_return_chunk" as children.
         //  This should be corrected
 
         // Check if it's a branch node
@@ -143,7 +154,6 @@ private:
              *  We continue to the next pair of values */
 
             int _unchanged_value = n;
-            std::cout << "///////////////////////////////////////// value: " << _unchanged_value << std::endl;
             new_module = std::make_shared<NoChange>(node, _unchanged_value);
 
             new_ep = new_ep.add_leaf(new_module, node, false, false);
@@ -157,8 +167,6 @@ private:
              * arbitrarily */
 
             int _changed_value = n;
-            std::cout << "///////////////////////////////////////// value: " << _changed_value << std::endl;
-
             new_module = std::make_shared<Change>(
                 node, klee::ref<klee::Expr>(on_true_expr), _changed_value);
 
@@ -172,17 +180,17 @@ private:
             std::cout << "Both modifications are different" << std::endl;
 
             int _changed_value = n;
-            std::cout << "///////////////////////////////////////// value: " << _changed_value << std::endl;
 
-            if (_changed_value != _value_in_condition) {
-                std::cout << "Changed value is different from value in "
-                             "condition and a MonoBPS cannot be used. Another "
+            if (changed_value == _value_in_condition) {
+                std::cout << "Changed value is the same as the value in "
+                             "condition and an AidedUnivariablePBS cannot be "
+                             "used. Another "
                              "Module may be able to process this node."
                           << std::endl;
                 return result;
             }
 
-            new_module = std::make_shared<MonoPBS>(
+            new_module = std::make_shared<AidedUnivariatePBS>(
                 node, _condition, klee::ref<klee::Expr>(on_true_expr),
                 klee::ref<klee::Expr>(on_false_expr), _changed_value,
                 _value_in_condition);
@@ -205,6 +213,9 @@ private:
         // If no new module was created,
         // it means no modification was seen for this specific value
         if (!new_module) {
+            std::cout << "There shouldn't be a case for this to enter here"
+                      << std::endl;
+            exit(2);
             return result;
         }
 
@@ -221,10 +232,10 @@ public:
     }
 
     virtual Module_ptr clone() const override {
-        auto cloned =
-            new MonoPBS(node, this->condition, this->then_modification,
-                        this->else_modification, this->changed_value,
-                        this->value_in_condition);
+        auto cloned = new AidedUnivariatePBS(
+            node, this->condition, this->then_modification,
+            this->else_modification, this->changed_value,
+            this->value_in_condition);
         return std::shared_ptr<Module>(cloned);
     }
 
@@ -233,7 +244,7 @@ public:
             return false;
         }
 
-        auto other_cast = static_cast<const MonoPBS *>(other);
+        auto other_cast = static_cast<const AidedUnivariatePBS *>(other);
 
         if (!(kutil::solver_toolbox.are_exprs_always_equal(
                   this->condition, other_cast->get_condition()) &&
@@ -310,24 +321,41 @@ public:
         // TODO I Could potentially flip this condition if there is no Then
         // modification
         std::string condition = this->condition_to_string();
-        std::string then_result = this->then_modification_to_string(false);
-        std::string else_result = this->else_modification_to_string(false);
+        std::string then_result = this->then_modification_to_string(true);
+        std::string else_result = this->else_modification_to_string(true);
 
-        s << "let " << value << " = " << condition_value << ".map(|"
-          << condition_value << "| if " << condition << " {" << then_result
-          << "}";
-
-        if (!else_result.empty()) {
-            s << " else {" << else_result << "}";
+        if (else_result.empty() && then_result.empty()) {
+            std::cerr <<
+                "Both then and else modifications are empty. This shouldn't "
+                "happen"
+                      << std::endl;
+            exit(2);
         }
 
-        s << ");" << std::endl;
+        s << "let " << value << " = " << condition_value << ".map(|"
+          << condition_value << "| if " << condition;
+
+        if (else_result.empty() && !then_result.empty()) {
+            s << " { 1 } else { 0 })"
+              << " * (" << then_result << ");";
+        } else if (then_result.empty() && !else_result.empty()) {
+            s << " { 0 } else { 1 })"
+              << " * (" << else_result << ");";
+        } else {
+            s << " { 1 } else { 0 })"
+              << " * (" << then_result << ") + " << condition_value << ".map(|"
+              << condition_value << "| if " << condition << " { 0 } else { 1 })"
+              << " * (" << else_result << ");";
+        }
+
+        s << std::endl;
 
         return s.str();
     }
 
     std::string generate_code(bool using_operators = false,
-                              bool needs_cloning = true) const {
+                              bool needs_cloning = true,
+                              bool flip = false) const {
         // Get the condition type
         klee::Expr::Kind conditionType = this->condition->getKind();
 
@@ -339,86 +367,51 @@ public:
         std::string closing_character = using_operators ? "" : ")";
         std::string operator_str = "";
 
+        auto condition_left_side =
+            generate_tfhe_code(this->condition->getKid(0), needs_cloning);
+        auto condition_right_side =
+            generate_tfhe_code(this->condition->getKid(1), needs_cloning);
+
         // Generate the corresponding Rust code based on the condition
         switch (conditionType) {
         // Case for handling equality expressions.
         case klee::Expr::Eq:
             operator_str = using_operators ? " == " : ".eq(";
-            code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
-                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
-                closing_character;
             break;
         // Case for handling unsigned less-than expressions.
         case klee::Expr::Ult:
-            operator_str = using_operators ? " > " : ".ge(";
-            code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
-                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
-                closing_character;
+            operator_str = using_operators ? " < " : ".lt(";
             break;
 
         // Case for handling unsigned less-than-or-equal-to expressions.
         case klee::Expr::Ule:
-            operator_str = using_operators ? " > " : ".gt(";
-            code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
-                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
-                closing_character;
+            operator_str = using_operators ? " <= " : ".le(";
             break;
 
         // Case for handling unsigned greater-than expressions.
         case klee::Expr::Ugt:
-            operator_str = using_operators ? " <= " : ".le(";
-            code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
-                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
-                closing_character;
+            operator_str = using_operators ? " > " : ".gt(";
             break;
 
         // Fallthrough to Uge since there is no signed values in TFHE
         case klee::Expr::Sge:
             // TODO Look at https://www.zama.ai/post/releasing-tfhe-rs-v0-4-0
             //  and see how to use signed comparisons
-            operator_str = using_operators ? " < " : ".lt(";
-            code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
-                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
-                closing_character;
+            operator_str = using_operators ? " >= " : ".ge(";
             break;
         // Case for handling unsigned greater-than-or-equal-to expressions.
         case klee::Expr::Uge:
-            operator_str = using_operators ? " < " : ".lt(";
-            code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
-                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
-                closing_character;
+            operator_str = using_operators ? " >= " : ".ge(";
             break;
 
         // Case for handling signed less-than expressions.
         case klee::Expr::Slt:
-            operator_str = using_operators ? " >= " : ".ge(";
-            code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
-                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
-                closing_character;
+            operator_str = using_operators ? " < " : ".lt(";
             break;
 
         // Case for handling signed less-than-or-equal-to expressions.
         case klee::Expr::Sle:
-            operator_str = using_operators ? " > " : ".gt(";
-            code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
-                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
-                closing_character;
+            operator_str = using_operators ? " <= " : ".le(";
             break;
         // FIXME Add more cases as needed for other condition types
         default:
@@ -427,23 +420,33 @@ public:
             exit(1);
         }
 
+        if (!flip) {
+            code = condition_left_side + operator_str + condition_right_side +
+                   closing_character;
+        } else {
+            code = condition_right_side + operator_str + condition_left_side +
+                   closing_character;
+        }
+
         return code;
     }
 
     std::string to_string_debug() const {
         std::string str;
         llvm::raw_string_ostream s(str);
-        s << "MonoPBS(" << this->condition_to_string() << ", "
+        s << "AidedUnivariatePBS(" << this->condition_to_string() << ", "
           << this->then_modification_to_string() << ", "
           << this->else_modification_to_string() << ", "
           << this->changed_value_to_string() << ", "
-          << this->value_in_condition_to_string() << ")";
+          << this->value_in_condition_to_string() << ")"
+          << "\n";
         return s.str();
     }
 
-    friend std::ostream &operator<<(std::ostream &os,
-                                    std::shared_ptr<MonoPBS> const &mono_pbs) {
-        os << mono_pbs->to_string();
+    friend std::ostream &operator<<(
+        std::ostream &os,
+        std::shared_ptr<AidedUnivariatePBS> const &aided_univariate_pbs) {
+        os << aided_univariate_pbs->to_string();
         return os;
     }
 };

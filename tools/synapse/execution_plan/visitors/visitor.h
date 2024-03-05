@@ -160,9 +160,13 @@ class CurrentTime;
 class PacketBorrowNextChunk;
 class PacketBorrowNextSecret;
 class PacketReturnChunk;
+class NoOpPacketReturnChunk;
 class TruthTablePBS;
 class Conditional;
 class MonoPBS;
+class Change;
+class NoChange;
+class AidedUnivariatePBS;
 class Operation;
 class If;
 class Then;
@@ -369,9 +373,13 @@ public:
   VISIT(targets::tfhe::PacketBorrowNextChunk)
   VISIT(targets::tfhe::PacketReturnChunk)
   VISIT(targets::tfhe::PacketBorrowNextSecret)
+  VISIT(targets::tfhe::NoOpPacketReturnChunk)
   VISIT(targets::tfhe::TruthTablePBS)
   VISIT(targets::tfhe::Conditional)
   VISIT(targets::tfhe::MonoPBS)
+  VISIT(targets::tfhe::Change)
+  VISIT(targets::tfhe::NoChange)
+  VISIT(targets::tfhe::AidedUnivariatePBS)
   VISIT(targets::tfhe::Operation)
   VISIT(targets::tfhe::If)
   VISIT(targets::tfhe::Then)

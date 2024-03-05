@@ -508,6 +508,30 @@ void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
   }
 }
 
+void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
+                         const target::NoOpPacketReturnChunk *node) {
+  auto original_chunk = node->get_original_chunk();
+  auto modifications = node->get_modifications();
+
+  for (auto mod : modifications) {
+    auto byte = mod.byte;
+    auto expr = mod.expr;
+
+    auto modified_byte = kutil::solver_toolbox.exprBuilder->Extract(
+        original_chunk, byte * 8, klee::Expr::Int8);
+
+    auto transpiled_byte = transpile(modified_byte);
+    auto transpiled_expr = transpile(expr);
+
+    nf_process_builder.indent();
+    nf_process_builder.append(transpiled_byte);
+    nf_process_builder.append(" = ");
+    nf_process_builder.append(transpiled_expr);
+    nf_process_builder.append(";");
+    nf_process_builder.append_new_line();
+  }
+}
+
 //void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
 //                         const target::If *node) {
 //  auto _condition = node->get_condition();
@@ -571,6 +595,18 @@ void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
 
 void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
                           const target::MonoPBS *node) {
+}
+
+void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
+                          const target::Change *node) {
+}
+
+void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
+                          const target::NoChange *node) {
+}
+
+void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
+                          const target::AidedUnivariatePBS *node) {
 }
 
 void tfheGenerator::visit(const ExecutionPlanNode *ep_node,

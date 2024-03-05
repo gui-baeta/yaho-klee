@@ -152,6 +152,7 @@ std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr, bool needs_clo
     return code;
 }
 
+// This function returns the values that the expression depends on (i.e. the indexs of the read)
 std::vector<int> get_dependent_values(const klee::ref<klee::Expr> &expr) {
     std::vector<int> dependent_values;
     if (expr->getKind() == klee::Expr::Read) {

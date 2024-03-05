@@ -182,6 +182,7 @@ public:
     tfhe_PacketBorrowNextChunk,
     tfhe_PacketBorrowNextSecret,
     tfhe_PacketReturnChunk,
+    tfhe_NoOpPacketReturnChunk,
     tfhe_Forward,
     tfhe_Drop,
     tfhe_Broadcast,
@@ -195,6 +196,9 @@ public:
     tfhe_TruthTablePBS,
     tfhe_Conditional,
     tfhe_MonoPBS,
+    tfhe_AidedUnivariatePBS,
+    tfhe_Change,
+    tfhe_NoChange,
     tfhe_Operation,
   };
 

@@ -47,6 +47,7 @@ private:
   ep_id_t id;
 
   ExecutionPlanNode_ptr root;
+  /// "leaves" stores the current node(s) being processed
   std::vector<leaf_t> leaves;
   BDD::BDD bdd;
 
@@ -57,6 +58,12 @@ private:
   std::unordered_map<TargetType, TargetMemoryBank_ptr> memory_banks;
 
   ep_meta_t meta;
+
+  /// The Next value to be taken care off, respective to a BDD Node.
+  /// If it's -1, it means that it's not set
+  /// If its equal to the total number of values, it means that all values have
+  /// been taken care off
+  std::unordered_map<BDD::node_id_t, int> next_value;
 
 public:
   ExecutionPlan(const BDD::BDD &_bdd);
@@ -75,6 +82,12 @@ public:
 
   std::vector<ExecutionPlanNode_ptr> get_prev_nodes() const;
   std::vector<ExecutionPlanNode_ptr> get_prev_nodes_of_current_target() const;
+
+  int get_next_value_of_node(BDD::node_id_t id);
+
+  void mark_value_as_done_for_node(BDD::node_id_t id);
+
+  bool all_values_marked_for_node(BDD::node_id_t id, int number_of_values);
 
   std::vector<BDD::Node_ptr> get_incoming_bdd_nodes() const;
 
@@ -124,6 +137,7 @@ public:
 
   float get_bdd_processing_progress() const;
   void remove_from_processed_bdd_nodes(BDD::node_id_t id);
+  void add_processed_bdd_node(BDD::node_id_t id, int number_of_values);
   void add_processed_bdd_node(BDD::node_id_t id);
   void replace_roots(BDD::node_id_t _old, BDD::node_id_t _new);
 

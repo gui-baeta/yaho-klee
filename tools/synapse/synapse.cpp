@@ -365,7 +365,8 @@ std::vector<value_conditions_t> preprocess(
 }
 
 std::string produce_ep_code(const ExecutionPlan &ep) {
-    std::ostream code(std::cout.rdbuf());
+    std::ostringstream code;
+
     ExecutionPlanNode_ptr current_ep_node_ptr = ep.get_root();
 
     int number_of_values = 0;
@@ -402,6 +403,36 @@ std::string produce_ep_code(const ExecutionPlan &ep) {
             /* In a mono PBS, the condition depends only on one value */
 
             code << monoPBS_module;
+        } else if (current_ep_node_ptr->get_module_type() ==
+                   synapse::Module::tfhe_AidedUnivariatePBS) {
+            auto aided_univariate_pbs =
+                std::static_pointer_cast<synapse::targets::tfhe::AidedUnivariatePBS>(
+                    current_ep_node_ptr->get_module());
+
+            /* In an Aided Univariate PBS, the condition depends only on one value */
+
+            code << aided_univariate_pbs;
+        } else if (current_ep_node_ptr->get_module_type() == synapse::Module::tfhe_Change) {
+            auto change_module = std::static_pointer_cast<synapse::targets::tfhe::Change>(
+                current_ep_node_ptr->get_module());
+
+            /* A Change generates one value change */
+
+            code << change_module;
+        } else if (current_ep_node_ptr->get_module_type() == synapse::Module::tfhe_NoChange) {
+            auto no_change_module = std::static_pointer_cast<synapse::targets::tfhe::NoChange>(
+                current_ep_node_ptr->get_module());
+
+            /* Generates nothing */
+
+            code << no_change_module;
+        } else if (current_ep_node_ptr->get_module_type() == synapse::Module::tfhe_NoOpPacketReturnChunk) {
+            auto no_op_packet_return_chunk_module = std::static_pointer_cast<synapse::targets::tfhe::NoOpPacketReturnChunk>(
+                current_ep_node_ptr->get_module());
+
+            /* Generates nothing */
+
+            code << no_op_packet_return_chunk_module;
         }
         // TODO Add other types of Conditionals, such as multi PBS
         if (current_ep_node_ptr->has_next()) {
@@ -413,12 +444,10 @@ std::string produce_ep_code(const ExecutionPlan &ep) {
     }
 
     // TODO
-    //  (after everything is printed) - Put code that closes the counting of time
+    //  (after everything is printed) - Put code that closes the counting of
+    //  time
 
-
-    std::stringstream ss;
-    ss << code.rdbuf();
-    return ss.str();
+    return code.str();
 }
 
 void synthesize_code(const ExecutionPlan &ep) {
@@ -431,11 +460,13 @@ void synthesize_code(const ExecutionPlan &ep) {
     // Create file if not exists and open it with write permission
     std::ofstream myfile;
     myfile.open("main.rs");
+    if (!myfile.is_open()) {
+        std::cerr << "Error opening file for writing!" << std::endl;
+        return;  // or handle the error appropriately
+    }
     std::string code = produce_ep_code(extracted_ep);
-    std::cout << code << std::endl;
     myfile << code;
     myfile.flush();
-
     myfile.close();
 }
 

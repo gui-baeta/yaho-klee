@@ -98,6 +98,10 @@ public:
         for (auto module : target->modules) {
           auto result = module->process_node(next_ep, next_node, max_reordered);
 
+//          if (result.redo_bdd_node) {
+//
+//          }
+
           if (result.next_eps.size()) {
             report.target_name.push_back(module->get_target_name());
             report.name.push_back(module->get_name());

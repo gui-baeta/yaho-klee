@@ -38,13 +38,13 @@ ExecutionPlan::ExecutionPlan(const ExecutionPlan &ep)
     : id(ep.id), root(ep.root), leaves(ep.leaves), bdd(ep.bdd),
       targets(ep.targets), initial_target(ep.initial_target),
       shared_memory_bank(ep.shared_memory_bank), memory_banks(ep.memory_banks),
-      meta(ep.meta) {}
+      meta(ep.meta), next_value(ep.next_value) {}
 
 ExecutionPlan::ExecutionPlan(const ExecutionPlan &ep,
                              ExecutionPlanNode_ptr _root)
     : id(counter++), root(_root), bdd(ep.bdd), targets(ep.targets),
       initial_target(ep.initial_target),
-      shared_memory_bank(ep.shared_memory_bank), memory_banks(ep.memory_banks) {
+      shared_memory_bank(ep.shared_memory_bank), memory_banks(ep.memory_banks), next_value(ep.next_value) {
   if (!_root) {
     return;
   }
@@ -127,6 +127,14 @@ ExecutionPlan::get_prev_nodes_of_current_target() const {
   }
 
   return prev_nodes;
+}
+
+int ExecutionPlan::get_next_value_of_node(BDD::node_id_t id) { return this->next_value[id]; }
+
+void ExecutionPlan::mark_value_as_done_for_node(BDD::node_id_t id) { this->next_value[id] += 1; }
+
+bool ExecutionPlan::all_values_marked_for_node(BDD::node_id_t id, int number_of_values) {
+    return this->next_value[id] >= number_of_values;
 }
 
 std::vector<BDD::Node_ptr> ExecutionPlan::get_incoming_bdd_nodes() const {
@@ -476,6 +484,26 @@ void ExecutionPlan::remove_from_processed_bdd_nodes(BDD::node_id_t id) {
   meta.processed_nodes.erase(found_it);
 }
 
+void ExecutionPlan::add_processed_bdd_node(BDD::node_id_t id, int number_of_values) {
+  auto found_it = meta.processed_nodes.find(id);
+  if (found_it == meta.processed_nodes.end()) {
+    meta.processed_nodes.insert(id);
+  }
+
+  for (auto &leaf : leaves) {
+    assert(leaf.next);
+    if (leaf.next->get_id() == id) {
+      assert(leaf.next->get_next());
+      // TODO This most definitely breaks down since we usually are handling in BDD branches
+      // If this node is taken care of (the values are marked as done), then we can skip this check
+      if (this->next_value[leaf.next->get_id()] != number_of_values) {
+          assert(leaf.next->get_type() != BDD::Node::NodeType::BRANCH);
+      }
+      leaf.next = leaf.next->get_next();
+    }
+  }
+}
+
 void ExecutionPlan::add_processed_bdd_node(BDD::node_id_t id) {
   auto found_it = meta.processed_nodes.find(id);
   if (found_it == meta.processed_nodes.end()) {
@@ -486,7 +514,11 @@ void ExecutionPlan::add_processed_bdd_node(BDD::node_id_t id) {
     assert(leaf.next);
     if (leaf.next->get_id() == id) {
       assert(leaf.next->get_next());
-      assert(leaf.next->get_type() != BDD::Node::NodeType::BRANCH);
+      // TODO This most definitely breaks down since we usually are handling in BDD branches
+      // If this node is taken care of (the values are marked as done), then we can skip this check
+      if (this->next_value[leaf.next->get_id()] != this->next_value[id]) {
+          assert(leaf.next->get_type() != BDD::Node::NodeType::BRANCH);
+      }
       leaf.next = leaf.next->get_next();
     }
   }
@@ -497,6 +529,11 @@ ExecutionPlan ExecutionPlan::clone(BDD::BDD new_bdd) const {
 
   copy.id = counter++;
   copy.bdd = new_bdd;
+
+  // Clone next_value unordered map
+  for (auto it = next_value.begin(); it != next_value.end(); it++) {
+    copy.next_value[it->first] = it->second;
+  }
 
   copy.shared_memory_bank = shared_memory_bank->clone();
 
@@ -530,6 +567,11 @@ ExecutionPlan ExecutionPlan::clone(bool deep) const {
   ExecutionPlan copy = *this;
 
   copy.id = counter++;
+
+  // Clone next_value unordered map
+  for (auto it = next_value.begin(); it != next_value.end(); it++) {
+    copy.next_value[it->first] = it->second;
+  }
 
   if (deep) {
     copy.bdd = copy.bdd.clone();
