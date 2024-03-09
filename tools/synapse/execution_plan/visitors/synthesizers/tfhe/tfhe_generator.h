@@ -68,7 +68,7 @@ public:
     void visit(const ExecutionPlanNode *ep_node,
                const target::Conditional *node) override;
     void visit(const ExecutionPlanNode *ep_node,
-               const target::MonoPBS *node) override;
+               const target::UnivariatePBS *node) override;
     void visit(const ExecutionPlanNode *ep_node,
                const target::Change *node) override;
     void visit(const ExecutionPlanNode *ep_node,

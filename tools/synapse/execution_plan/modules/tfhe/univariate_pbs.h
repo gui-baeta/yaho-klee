@@ -11,7 +11,7 @@ namespace synapse {
 namespace targets {
 namespace tfhe {
 
-class MonoPBS : public tfheModule {
+class UnivariatePBS : public tfheModule {
 private:
     klee::ref<klee::Expr> condition;
     klee::ref<klee::Expr> then_modification;
@@ -23,13 +23,13 @@ private:
     int value_in_condition = 0;
 
 public:
-    MonoPBS() : tfheModule(ModuleType::tfhe_MonoPBS, "MonoPBS") {}
+    UnivariatePBS() : tfheModule(ModuleType::tfhe_UnivariatePBS, "UnivariatePBS") {}
 
-    MonoPBS(BDD::Node_ptr node, klee::ref<klee::Expr> _condition,
+    UnivariatePBS(BDD::Node_ptr node, klee::ref<klee::Expr> _condition,
             klee::ref<klee::Expr> _then_modification,
             klee::ref<klee::Expr> _else_modification, int _changed_value,
             int _value_in_condition)
-        : tfheModule(ModuleType::tfhe_MonoPBS, "MonoPBS", node),
+        : tfheModule(ModuleType::tfhe_UnivariatePBS, "UnivariatePBS", node),
           condition(_condition),
           then_modification(_then_modification),
           else_modification(_else_modification),
@@ -143,7 +143,8 @@ private:
              *  We continue to the next pair of values */
 
             int _unchanged_value = n;
-            std::cout << "///////////////////////////////////////// value: " << _unchanged_value << std::endl;
+            std::cout << "///////////////////////////////////////// value: "
+                      << _unchanged_value << std::endl;
             new_module = std::make_shared<NoChange>(node, _unchanged_value);
 
             new_ep = new_ep.add_leaf(new_module, node, false, false);
@@ -157,7 +158,8 @@ private:
              * arbitrarily */
 
             int _changed_value = n;
-            std::cout << "///////////////////////////////////////// value: " << _changed_value << std::endl;
+            std::cout << "///////////////////////////////////////// value: "
+                      << _changed_value << std::endl;
 
             new_module = std::make_shared<Change>(
                 node, klee::ref<klee::Expr>(on_true_expr), _changed_value);
@@ -166,13 +168,14 @@ private:
              * there could be other changes in other values */
             new_ep = new_ep.add_leaf(new_module, node, false, false);
         } else {
-            /* Creates a new MonoPBS Module when there is a difference
+            /* Creates a new UnivariatePBS Module when there is a difference
              * between the same value */
 
             std::cout << "Both modifications are different" << std::endl;
 
             int _changed_value = n;
-            std::cout << "///////////////////////////////////////// value: " << _changed_value << std::endl;
+            std::cout << "///////////////////////////////////////// value: "
+                      << _changed_value << std::endl;
 
             if (_changed_value != _value_in_condition) {
                 std::cout << "Changed value is different from value in "
@@ -182,7 +185,7 @@ private:
                 return result;
             }
 
-            new_module = std::make_shared<MonoPBS>(
+            new_module = std::make_shared<UnivariatePBS>(
                 node, _condition, klee::ref<klee::Expr>(on_true_expr),
                 klee::ref<klee::Expr>(on_false_expr), _changed_value,
                 _value_in_condition);
@@ -222,7 +225,7 @@ public:
 
     virtual Module_ptr clone() const override {
         auto cloned =
-            new MonoPBS(node, this->condition, this->then_modification,
+            new UnivariatePBS(node, this->condition, this->then_modification,
                         this->else_modification, this->changed_value,
                         this->value_in_condition);
         return std::shared_ptr<Module>(cloned);
@@ -233,7 +236,7 @@ public:
             return false;
         }
 
-        auto other_cast = static_cast<const MonoPBS *>(other);
+        auto other_cast = static_cast<const UnivariatePBS *>(other);
 
         if (!(kutil::solver_toolbox.are_exprs_always_equal(
                   this->condition, other_cast->get_condition()) &&
@@ -313,12 +316,18 @@ public:
         std::string then_result = this->then_modification_to_string(false);
         std::string else_result = this->else_modification_to_string(false);
 
-        s << "let " << value << " = " << condition_value << ".map(|"
-          << condition_value << "| if " << condition << " {" << then_result
-          << "}";
-
-        if (!else_result.empty()) {
-            s << " else {" << else_result << "}";
+        if (!else_result.empty() && !then_result.empty()) {
+            s << "let " << value << " = " << condition_value << ".map(|"
+              << condition_value << "| if " << condition << " {" << then_result
+              << "} else {" << else_result << "}";
+        } else if (then_result.empty()) {
+            s << "let " << value << " = " << condition_value << ".map(|"
+              << condition_value << "| if " << condition << " { " << value
+              << " } else {" << else_result << "}";
+        } else if (else_result.empty()) {
+            s << "let " << value << " = " << condition_value << ".map(|"
+              << condition_value << "| if " << condition << " {" << then_result
+              << "}";
         }
 
         s << ");" << std::endl;
@@ -433,7 +442,7 @@ public:
     std::string to_string_debug() const {
         std::string str;
         llvm::raw_string_ostream s(str);
-        s << "MonoPBS(" << this->condition_to_string() << ", "
+        s << "UnivariatePBS(" << this->condition_to_string() << ", "
           << this->then_modification_to_string() << ", "
           << this->else_modification_to_string() << ", "
           << this->changed_value_to_string() << ", "
@@ -442,8 +451,8 @@ public:
     }
 
     friend std::ostream &operator<<(std::ostream &os,
-                                    std::shared_ptr<MonoPBS> const &mono_pbs) {
-        os << mono_pbs->to_string();
+                                    std::shared_ptr<UnivariatePBS> const &univariate_pbs) {
+        os << univariate_pbs->to_string();
         return os;
     }
 };

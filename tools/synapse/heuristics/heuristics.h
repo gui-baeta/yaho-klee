@@ -8,3 +8,4 @@
 #include "maximize_switch_nodes.h"
 #include "most_compact.h"
 #include "gallium.h"
+#include "tfhe_most_abstracted.h"

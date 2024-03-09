@@ -8,14 +8,14 @@
 #include "packet_borrow_next_chunk.h"
 #include "packet_borrow_next_secret.h"
 
-// This need to come before MonoPBS since MonoPBS uses them
+// This need to come before UnivariatePBS since UnivariatePBS uses them
 #include "operation.h"
 #include "conditional.h"
 #include "change.h"
 #include "no_change.h"
 // ---
 
-#include "mono_pbs.h"
+#include "univariate_pbs.h"
 #include "aided_univariate_pbs.h"
 #include "current_time.h"
 #include "dchain_allocate_new_index.h"
@@ -72,7 +72,7 @@ public:
                    MODULE(NoOpPacketReturnChunk),
                    MODULE(TruthTablePBS),
                    MODULE(Conditional),
-                   MODULE(MonoPBS),
+                   MODULE(UnivariatePBS),
                    MODULE(Change),
                    MODULE(NoChange),
                    MODULE(AidedUnivariatePBS),

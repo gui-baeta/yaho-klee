@@ -195,7 +195,7 @@ public:
     tfhe_HashObj,
     tfhe_TruthTablePBS,
     tfhe_Conditional,
-    tfhe_MonoPBS,
+    tfhe_UnivariatePBS,
     tfhe_AidedUnivariatePBS,
     tfhe_Change,
     tfhe_NoChange,

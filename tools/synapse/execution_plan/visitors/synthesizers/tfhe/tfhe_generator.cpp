@@ -594,7 +594,7 @@ void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
 }
 
 void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
-                          const target::MonoPBS *node) {
+                          const target::UnivariatePBS *node) {
 }
 
 void tfheGenerator::visit(const ExecutionPlanNode *ep_node,

@@ -123,13 +123,14 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
     LeastReordered least_reordered;
     MaximizeSwitchNodes maximize_switch_nodes;
     Gallium gallium;
+    tfheMostAbstracted tfhe_most_abstracted;
 
     // auto winner = search_engine.search(biggest, peek);
     // auto winner = search_engine.search(least_reordered, peek);
     // auto winner = search_engine.search(dfs, peek);
     // auto winner = search_engine.search(most_compact, peek);
     // auto winner = search_engine.search(maximize_switch_nodes, peek);
-    auto winner = search_engine.search(gallium, peek);
+    auto winner = search_engine.search(tfhe_most_abstracted, peek);
     const auto &ss = search_engine.get_search_space();
 
     return {winner, ss};
@@ -364,6 +365,82 @@ std::vector<value_conditions_t> preprocess(
     return value_conditions;
 }
 
+std::string tfhe_initial_boiler_plate(){
+    return "use std::io;\n"
+           "use bincode;\n"
+           "\n"
+           "use std::fs::File;\n"
+           "use std::io::{Read, Write};\n"
+           "use std::ops::Add;\n"
+           "\n"
+           "use tfhe::prelude::*;\n"
+           "use tfhe::{\n"
+           "    generate_keys, set_server_key, ClientKey, ConfigBuilder, "
+           "FheUint3, FheUint4, ServerKey,\n"
+           "};\n"
+           "\n"
+           "type FheUint = FheUint3;\n"
+           "\n"
+           "fn main() {\n"
+           "    let config = "
+           "ConfigBuilder::all_disabled().enable_default_uint3().build();\n"
+           "\n"
+           "    let client_key: ClientKey;\n"
+           "    let server_key: ServerKey;\n"
+           "\n"
+           "    // Check if keys were generated (if files exist)\n"
+           "    if File::open(\"client.key\").is_ok() && "
+           "File::open(\"server.key\").is_ok() {\n"
+           "        println!(\"Loading keys...\");\n"
+           "        // Load keys from files\n"
+           "        client_key = "
+           "bincode::deserialize(&std::fs::read(\"client.key\").unwrap())."
+           "unwrap();\n"
+           "        server_key = "
+           "bincode::deserialize(&std::fs::read(\"server.key\").unwrap())."
+           "unwrap();\n"
+           "    } else {\n"
+           "        println!(\"Generating keys...\");\n"
+           "\n"
+           "        (client_key, server_key) = generate_keys(config);\n"
+           "\n"
+           "        // Save keys to files\n"
+           "        File::create(\"client.key\")\n"
+           "            .unwrap()\n"
+           "            "
+           ".write_all(bincode::serialize(&client_key).unwrap().as_slice())\n"
+           "            .unwrap();\n"
+           "\n"
+           "        File::create(\"server.key\")\n"
+           "            .unwrap()\n"
+           "            "
+           ".write_all(bincode::serialize(&server_key).unwrap().as_slice())\n"
+           "            .unwrap();\n"
+           "    }\n"
+           "    println!(\"Done.\");\n"
+           "\n"
+           "    // Create a new mutable String to store the user input\n"
+           "    let mut input = String::new();\n"
+           "\n"
+           "    // Print a message to prompt the user for input\n"
+           "    println!(\"Please enter three integers separated by "
+           "spaces:\");\n"
+           "\n"
+           "    // Read the user input from stdin\n"
+           "    io::stdin().read_line(&mut input)\n"
+           "        .expect(\"Failed to read line\");\n"
+           "\n"
+           "    // Split the input by whitespaces and collect them into a "
+           "vector of strings\n"
+           "    let values: Vec<i32> = input.trim()\n"
+           "        .split_whitespace()\n"
+           "        .map(|s| s.parse().unwrap()) // Parse each value into an "
+           "integer\n"
+           "        .collect();\n"
+           "\n"
+           "    set_server_key(server_key);\n";
+}
+
 std::string produce_ep_code(const ExecutionPlan &ep) {
     std::ostringstream code;
 
@@ -371,13 +448,14 @@ std::string produce_ep_code(const ExecutionPlan &ep) {
 
     int number_of_values = 0;
 
+    code << tfhe_initial_boiler_plate();
+
     while (true) {
         std::cout << "current Module name:"
                   << current_ep_node_ptr->get_module_name() << std::endl;
         if (current_ep_node_ptr->get_module_type() ==
             synapse::Module::tfhe_CurrentTime) {
             /* Do Nothing */
-            std::cout << "Currently on CurrentTime. Do Nothing." << std::endl;
 
         } else if (current_ep_node_ptr->get_module_type() ==
                    synapse::Module::tfhe_PacketBorrowNextSecret) {
@@ -388,53 +466,69 @@ std::string produce_ep_code(const ExecutionPlan &ep) {
             number_of_values =
                 packet_borrow_secret_module->get_chunk_values_amount();
 
+            code << "\t// Packet Borrow Next Secret\n";
+
             for (int n_value = 0; n_value < number_of_values; ++n_value) {
-                code << "let val" << n_value << ";" << std::endl;
+                code << "\tlet val" << n_value
+                     << ": FheUint = FheUint::encrypt(values[" << n_value
+                     << "], &client_key);" << std::endl;
             }
 
-            // TODO
-            //  (after printing the values) - Put code for counting time
+            // (after printing the values) - Put code for counting time
+            code << "\tlet time = std::time::Instant::now();" << std::endl;
         } else if (current_ep_node_ptr->get_module_type() ==
-                   synapse::Module::tfhe_MonoPBS) {
-            auto monoPBS_module =
-                std::static_pointer_cast<synapse::targets::tfhe::MonoPBS>(
+                   synapse::Module::tfhe_UnivariatePBS) {
+            auto univariatePBS_module =
+                std::static_pointer_cast<synapse::targets::tfhe::UnivariatePBS>(
                     current_ep_node_ptr->get_module());
 
             /* In a mono PBS, the condition depends only on one value */
 
-            code << monoPBS_module;
+            code << "\t// Mono PBS\n";
+            code << "\t" << univariatePBS_module;
         } else if (current_ep_node_ptr->get_module_type() ==
                    synapse::Module::tfhe_AidedUnivariatePBS) {
-            auto aided_univariate_pbs =
-                std::static_pointer_cast<synapse::targets::tfhe::AidedUnivariatePBS>(
-                    current_ep_node_ptr->get_module());
-
-            /* In an Aided Univariate PBS, the condition depends only on one value */
-
-            code << aided_univariate_pbs;
-        } else if (current_ep_node_ptr->get_module_type() == synapse::Module::tfhe_Change) {
-            auto change_module = std::static_pointer_cast<synapse::targets::tfhe::Change>(
+            auto aided_univariate_pbs = std::static_pointer_cast<
+                synapse::targets::tfhe::AidedUnivariatePBS>(
                 current_ep_node_ptr->get_module());
+
+            /* In an Aided Univariate PBS, the condition depends only on one
+             * value */
+
+            code << "\t// Aid Univariate PBS\n";
+            code << "\t" << aided_univariate_pbs;
+        } else if (current_ep_node_ptr->get_module_type() ==
+                   synapse::Module::tfhe_Change) {
+            auto change_module =
+                std::static_pointer_cast<synapse::targets::tfhe::Change>(
+                    current_ep_node_ptr->get_module());
 
             /* A Change generates one value change */
 
-            code << change_module;
-        } else if (current_ep_node_ptr->get_module_type() == synapse::Module::tfhe_NoChange) {
-            auto no_change_module = std::static_pointer_cast<synapse::targets::tfhe::NoChange>(
-                current_ep_node_ptr->get_module());
+            code << "\t// Change\n";
+            code << "\t" << change_module;
+        } else if (current_ep_node_ptr->get_module_type() ==
+                   synapse::Module::tfhe_NoChange) {
+            auto no_change_module =
+                std::static_pointer_cast<synapse::targets::tfhe::NoChange>(
+                    current_ep_node_ptr->get_module());
 
             /* Generates nothing */
 
             code << no_change_module;
-        } else if (current_ep_node_ptr->get_module_type() == synapse::Module::tfhe_NoOpPacketReturnChunk) {
-            auto no_op_packet_return_chunk_module = std::static_pointer_cast<synapse::targets::tfhe::NoOpPacketReturnChunk>(
+        } else if (current_ep_node_ptr->get_module_type() ==
+                   synapse::Module::tfhe_NoOpPacketReturnChunk) {
+            auto no_op_packet_return_chunk_module = std::static_pointer_cast<
+                synapse::targets::tfhe::NoOpPacketReturnChunk>(
                 current_ep_node_ptr->get_module());
 
             /* Generates nothing */
 
             code << no_op_packet_return_chunk_module;
         }
+
         // TODO Add other types of Conditionals, such as multi PBS
+
         if (current_ep_node_ptr->has_next()) {
             current_ep_node_ptr =
                 current_ep_node_ptr->get_next_sequential_ep_node();
@@ -443,15 +537,27 @@ std::string produce_ep_code(const ExecutionPlan &ep) {
         }
     }
 
-    // TODO
-    //  (after everything is printed) - Put code that closes the counting of
-    //  time
+    // (after everything is printed) - Put code that closes the counting of time
+    code << "\t"
+         << "let elapsed_time = std::time::Instant::now() - time;" << std::endl;
+
+    code << "\tprintln!(\"Result:\");\n";
+    for (int n_value = 0; n_value < number_of_values; ++n_value) {
+        code << "\tprintln!(\"val" << n_value << ": {}\", val" << n_value << ".decrypt(&client_key));\n";
+    }
+    code << std::endl;
+
+    code << "\tprintln!(\"Time taken: {:?}\", elapsed_time.as_secs_f64());" << std::endl;
+
+    code << "}" << std::endl;
 
     return code.str();
 }
 
 void synthesize_code(const ExecutionPlan &ep) {
     CodeGenerator code_generator(Out);
+
+    std::cout << "Output Directory: " << Out << std::endl;
     // Assuming the only target is TFHE-rs
     assert(TargetList.size() == 1 && TargetList[0] == TargetType::tfhe);
     code_generator.add_target(TargetList[0]);
@@ -459,7 +565,7 @@ void synthesize_code(const ExecutionPlan &ep) {
 
     // Create file if not exists and open it with write permission
     std::ofstream myfile;
-    myfile.open("main.rs");
+    myfile.open(Out + "main.rs");
     if (!myfile.is_open()) {
         std::cerr << "Error opening file for writing!" << std::endl;
         return;  // or handle the error appropriately

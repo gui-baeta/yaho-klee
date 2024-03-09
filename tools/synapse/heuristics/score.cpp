@@ -239,4 +239,20 @@ Score::get_percentage_of_processed_bdd(const ExecutionPlan &ep) const {
   return 100 * ep.get_bdd_processing_progress();
 }
 
+Score::score_value_t
+Score::get_cost_pbs(const ExecutionPlan &ep) const {
+  auto nodes = get_nodes_with_type(ep, {Module::ModuleType::tfhe_UnivariatePBS});
+  // TODO Add bivariatePBS
+  return nodes.size();
+}
+
+
+Score::score_value_t
+Score::get_cost_aided_pbs(const ExecutionPlan &ep) const {
+  auto nodes = get_nodes_with_type(ep, {Module::ModuleType::tfhe_AidedUnivariatePBS});
+  // Multiplied by 2 since one aided univariate PBS is
+  //  twice the cost in time compared to one univariate PBS
+  return nodes.size() * 2;
+}
+
 } // namespace synapse

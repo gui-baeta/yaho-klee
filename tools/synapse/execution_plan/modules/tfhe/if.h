@@ -128,7 +128,7 @@ private:
                 std::cout << "Both modifications are equal" << std::endl;
                 // TODO Add a Change module
                 //  Should this be done by the Change module, and not by the
-                //  MonoPBS?
+                //  UnivariatePBS?
             } else {
                 std::cout << "Both modifications are different" << std::endl;
 

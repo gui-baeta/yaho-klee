@@ -174,21 +174,15 @@ private:
              * there could be other changes in other values */
             new_ep = new_ep.add_leaf(new_module, node, false, false);
         } else {
-            /* Creates a new MonoPBS Module when there is a difference
+            /* Creates a new UnivariatePBS Module when there is a difference
              * between the same value */
 
             std::cout << "Both modifications are different" << std::endl;
 
             int _changed_value = n;
 
-            if (changed_value == _value_in_condition) {
-                std::cout << "Changed value is the same as the value in "
-                             "condition and an AidedUnivariablePBS cannot be "
-                             "used. Another "
-                             "Module may be able to process this node."
-                          << std::endl;
-                return result;
-            }
+            /* This module handles both the cases where the condition dependent
+             * value is the same as the changed value and when it's not */
 
             new_module = std::make_shared<AidedUnivariatePBS>(
                 node, _condition, klee::ref<klee::Expr>(on_true_expr),
@@ -325,10 +319,10 @@ public:
         std::string else_result = this->else_modification_to_string(true);
 
         if (else_result.empty() && then_result.empty()) {
-            std::cerr <<
-                "Both then and else modifications are empty. This shouldn't "
-                "happen"
-                      << std::endl;
+            std::cerr
+                << "Both then and else modifications are empty. This shouldn't "
+                   "happen"
+                << std::endl;
             exit(2);
         }
 
@@ -354,8 +348,7 @@ public:
     }
 
     std::string generate_code(bool using_operators = false,
-                              bool needs_cloning = true,
-                              bool flip = false) const {
+                              bool needs_cloning = true) const {
         // Get the condition type
         klee::Expr::Kind conditionType = this->condition->getKind();
 
@@ -420,13 +413,8 @@ public:
             exit(1);
         }
 
-        if (!flip) {
-            code = condition_left_side + operator_str + condition_right_side +
-                   closing_character;
-        } else {
-            code = condition_right_side + operator_str + condition_left_side +
-                   closing_character;
-        }
+        code = condition_left_side + operator_str + condition_right_side +
+               closing_character;
 
         return code;
     }
