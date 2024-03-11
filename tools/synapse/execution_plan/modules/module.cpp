@@ -52,6 +52,7 @@ std::vector<ExecutionPlan> get_reordered(const ExecutionPlan &ep,
                                  reordered_bdd.condition);
         }
 
+        /* Set the next BDD node to be processed */
         ep_cloned.replace_active_leaf_node(reordered_bdd.candidate, false);
         ep_cloned.inc_reordered_nodes();
 
@@ -84,6 +85,8 @@ processing_result_t Module::process_node(const ExecutionPlan &ep,
     std::vector<ExecutionPlan> reordered;
 
     for (auto ep : result.next_eps) {
+        // Reorder BDD if possible.
+        // Set the next BDD node to be processed - This comes from the leaf that was added.
         auto ep_reodered = get_reordered(ep, max_reordered);
         reordered.insert(reordered.end(), ep_reodered.begin(),
                          ep_reodered.end());

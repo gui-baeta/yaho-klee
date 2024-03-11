@@ -8,8 +8,8 @@ namespace synapse {
 struct TfheMostAbstractedComparator : public HeuristicConfiguration {
   Score get_score(const ExecutionPlan &ep) const override {
     Score score(ep, {
-                        {Score::Category::CostOfPBSs, Score::MIN},
-                        {Score::Category::CostOfAidedPBSs, Score::MAX},
+                        {Score::Category::CostOfPBSs, Score::MAX},
+                        {Score::Category::CostOfAidedPBSs, Score::MIN},
 
                         // Uncomment, if needed
                         // {Score::Category::ProcessedBDDPercentage, Score::MAX},

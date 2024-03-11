@@ -48,6 +48,7 @@ private:
 
   ExecutionPlanNode_ptr root;
   /// "leaves" stores the current node(s) being processed
+  /// It's a staged EP node
   std::vector<leaf_t> leaves;
   BDD::BDD bdd;
 

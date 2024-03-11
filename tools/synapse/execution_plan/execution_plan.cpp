@@ -453,6 +453,7 @@ ExecutionPlan ExecutionPlan::add_leaves(std::vector<leaf_t> _leaves,
       new_ep.meta.nodes_per_target[module->get_target()]++;
     }
 
+    // Set the newly built Module as the next (new) EP node
     new_ep.leaves[0].leaf->set_next(branches);
   }
 
@@ -462,6 +463,7 @@ ExecutionPlan ExecutionPlan::add_leaves(std::vector<leaf_t> _leaves,
   return new_ep;
 }
 
+/// Set the next node to be processed
 void ExecutionPlan::replace_active_leaf_node(BDD::Node_ptr next,
                                              bool process_bdd_node) {
   if (process_bdd_node) {
