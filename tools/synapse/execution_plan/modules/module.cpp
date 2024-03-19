@@ -82,8 +82,8 @@ processing_result_t Module::process_node(const ExecutionPlan &ep,
         result = process(ep, node);
     }
 
-    std::vector<ExecutionPlan> reordered;
 
+    std::vector<ExecutionPlan> reordered;
     for (auto ep : result.next_eps) {
         // Reorder BDD if possible.
         // Set the next BDD node to be processed - This comes from the leaf that was added.

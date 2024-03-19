@@ -6,6 +6,8 @@
 #include "visitors/graphviz/graphviz.h"
 #include "visitors/visitor.h"
 
+#include <queue>
+
 namespace synapse {
 
 ep_id_t ExecutionPlan::counter = 0;
@@ -725,6 +727,35 @@ bool operator==(const ExecutionPlan &lhs, const ExecutionPlan &rhs) {
   }
 
   return true;
+}
+
+ExecutionPlanNode_ptr ExecutionPlan::find_node_by_module_type(int type) const {
+    return root->find_node_by_module_type(type);
+}
+
+std::vector<ExecutionPlanNode_ptr> ExecutionPlan::get_packet_return_chunks_ep_nodes() const {
+    // Define a stack for DFS traversal
+    std::queue<ExecutionPlanNode_ptr> queue;
+    queue.push(this->root);
+
+    std::vector<ExecutionPlanNode_ptr> packet_return_ep_nodes;
+
+    while (!queue.empty()) {
+        ExecutionPlanNode_ptr current = queue.front();
+        queue.pop();
+
+        // Check if the current node is a packet return chunk module.
+        // If so, add it to the list.
+        if (current->get_module_type() == synapse::Module::ModuleType::tfhe_Operation) {
+            packet_return_ep_nodes.push_back(current);
+        }
+
+        for (auto node: current->get_next()) {
+            queue.push(node);
+        }
+    }
+
+    return packet_return_ep_nodes;
 }
 
 } // namespace synapse

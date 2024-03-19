@@ -84,6 +84,8 @@ public:
     search_space.init(h.get_cfg(), first_execution_plan);
     h.add(std::vector<ExecutionPlan>{first_execution_plan});
 
+    bool _break = false;
+
     while (!h.finished()) {
       auto available = h.size();
       auto next_ep = h.pop();
@@ -97,10 +99,6 @@ public:
       for (auto target : targets) {
         for (auto module : target->modules) {
           auto result = module->process_node(next_ep, next_node, max_reordered);
-
-//          if (result.redo_bdd_node) {
-//
-//          }
 
           if (result.next_eps.size()) {
             report.target_name.push_back(module->get_target_name());

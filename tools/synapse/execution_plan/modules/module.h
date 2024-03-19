@@ -280,6 +280,10 @@ public:
   virtual Module_ptr clone() const = 0;
   virtual bool equals(const Module *other) const = 0;
 
+  virtual klee::ref<klee::Expr> get_expr() const {
+    return nullptr;
+  }
+
 protected:
   // Shared module functionality
   virtual processing_result_t process(const ExecutionPlan &ep,

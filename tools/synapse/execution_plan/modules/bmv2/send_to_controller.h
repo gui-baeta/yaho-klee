@@ -48,7 +48,7 @@ private:
     new_next->replace_prev(prev);
   }
 
-  BDD::Node_ptr clone_calls(ExecutionPlan &ep, BDD::Node_ptr current) const {
+  BDD::Node_ptr clone_calls(ExecutionPlan &ep, BDD::Node_ptr current) {
     assert(current);
 
     if (!current->get_prev()) {

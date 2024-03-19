@@ -382,63 +382,70 @@ std::string tfhe_initial_boiler_plate(){
            "type FheUint = FheUint3;\n"
            "\n"
            "fn main() {\n"
-           "    let config = "
-           "ConfigBuilder::all_disabled().enable_default_uint3().build();\n"
-           "\n"
-           "    let client_key: ClientKey;\n"
-           "    let server_key: ServerKey;\n"
-           "\n"
-           "    // Check if keys were generated (if files exist)\n"
-           "    if File::open(\"client.key\").is_ok() && "
-           "File::open(\"server.key\").is_ok() {\n"
-           "        println!(\"Loading keys...\");\n"
-           "        // Load keys from files\n"
-           "        client_key = "
-           "bincode::deserialize(&std::fs::read(\"client.key\").unwrap())."
-           "unwrap();\n"
-           "        server_key = "
-           "bincode::deserialize(&std::fs::read(\"server.key\").unwrap())."
-           "unwrap();\n"
-           "    } else {\n"
-           "        println!(\"Generating keys...\");\n"
-           "\n"
-           "        (client_key, server_key) = generate_keys(config);\n"
-           "\n"
-           "        // Save keys to files\n"
-           "        File::create(\"client.key\")\n"
-           "            .unwrap()\n"
-           "            "
-           ".write_all(bincode::serialize(&client_key).unwrap().as_slice())\n"
-           "            .unwrap();\n"
-           "\n"
-           "        File::create(\"server.key\")\n"
-           "            .unwrap()\n"
-           "            "
-           ".write_all(bincode::serialize(&server_key).unwrap().as_slice())\n"
-           "            .unwrap();\n"
-           "    }\n"
-           "    println!(\"Done.\");\n"
-           "\n"
-           "    // Create a new mutable String to store the user input\n"
-           "    let mut input = String::new();\n"
-           "\n"
-           "    // Print a message to prompt the user for input\n"
-           "    println!(\"Please enter three integers separated by "
-           "spaces:\");\n"
-           "\n"
-           "    // Read the user input from stdin\n"
-           "    io::stdin().read_line(&mut input)\n"
-           "        .expect(\"Failed to read line\");\n"
-           "\n"
-           "    // Split the input by whitespaces and collect them into a "
-           "vector of strings\n"
-           "    let values: Vec<i32> = input.trim()\n"
-           "        .split_whitespace()\n"
-           "        .map(|s| s.parse().unwrap()) // Parse each value into an "
-           "integer\n"
-           "        .collect();\n"
-           "\n"
-           "    set_server_key(server_key);\n";
+           "\tlet config = ConfigBuilder::all_disabled().enable_default_uint3().build();\n"
+           "\n\tlet client_key: ClientKey;\n"
+           "\tlet server_key: ServerKey;\n\n"
+           "\t// Check if keys were generated (if files exist)\n"
+           "\tif File::open(\"client.key\").is_ok() && "
+           "\t\tFile::open(\"server.key\").is_ok() {\n"
+           "\t\tprintln!(\"Loading keys...\");\n"
+           "\t\t// Load keys from files\n"
+           "\t\tclient_key = "
+           "\t\tbincode::deserialize(&std::fs::read(\"client.key\").unwrap())."
+           "\t\tunwrap();\n"
+           "\t\tserver_key = "
+           "\t\tbincode::deserialize(&std::fs::read(\"server.key\").unwrap()).unwrap();\n"
+           "\t} else {\n"
+           "\t\tprintln!(\"Generating keys...\");\n"
+           "\t\n"
+           "\t(client_key, server_key) = generate_keys(config);\n"
+           "\t\n"
+           "\t// Save keys to files\n"
+           "\tFile::create(\"client.key\")\n"
+           "\t    .unwrap()\n"
+           "\t    "
+           "\t.write_all(bincode::serialize(&client_key).unwrap().as_slice())\n"
+           "\t    .unwrap();\n"
+           "\t\n"
+           "\tFile::create(\"server.key\")\n"
+           "\t    .unwrap()\n"
+           "\t    "
+           "\t.write_all(bincode::serialize(&server_key).unwrap().as_slice())\n"
+           "\t        .unwrap();\n"
+           "\t}\n"
+           "\tprintln!(\"Done.\");\n"
+           "\t\n"
+           "\t// Create a new mutable String to store the user input\n"
+           "\tlet mut input = String::new();\n"
+           "\t\n"
+           "\t// Print a message to prompt the user for input\n"
+           "\tprintln!(\"Please enter three integers separated by spaces:\");\n"
+           "\t\n"
+           "\t// Read the user input from stdin\n"
+           "\tio::stdin().read_line(&mut input)\n"
+           "\t    .expect(\"Failed to read line\");\n"
+           "\t\n"
+           "\t// Split the input by whitespaces and collect them into a vector of strings\n"
+           "\tlet values: Vec<i32> = input.trim()\n"
+           "\t    .split_whitespace()\n"
+           "\t    .map(|s| s.parse().unwrap()) // Parse each value into an integer\n"
+           "\t    .collect();\n"
+           "\t\n"
+           "\tset_server_key(server_key);\n";
+}
+
+std::string tfhe_end_boiler_plate(int number_of_values){
+    // (after everything is printed) - Put code that closes the counting of time
+    std::string _str = "\tlet elapsed_time = std::time::Instant::now() - time;\n"
+            "\tprintln!(\"Result:\");\n";
+    for (int n_value = 0; n_value < number_of_values; ++n_value) {
+        _str = _str + "\tprintln!(\"val" + std::to_string(n_value) + ": {}\", val" + std::to_string(n_value) + ".decrypt(&client_key));\n";
+    }
+    _str += "\n"
+            "\tprintln!(\"Time taken: {:?}\", elapsed_time.as_secs_f64());\n"
+            "}\n";
+
+    return _str;
 }
 
 std::string produce_ep_code(const ExecutionPlan &ep) {
@@ -484,7 +491,7 @@ std::string produce_ep_code(const ExecutionPlan &ep) {
 
             /* In a mono PBS, the condition depends only on one value */
 
-            code << "\t// Mono PBS\n";
+            code << "\t// Univariate PBS\n";
             code << "\t" << univariatePBS_module;
         } else if (current_ep_node_ptr->get_module_type() ==
                    synapse::Module::tfhe_AidedUnivariatePBS) {
@@ -495,7 +502,7 @@ std::string produce_ep_code(const ExecutionPlan &ep) {
             /* In an Aided Univariate PBS, the condition depends only on one
              * value */
 
-            code << "\t// Aid Univariate PBS\n";
+            code << "\t// Aided Univariate PBS\n";
             code << "\t" << aided_univariate_pbs;
         } else if (current_ep_node_ptr->get_module_type() ==
                    synapse::Module::tfhe_Change) {
@@ -554,6 +561,86 @@ std::string produce_ep_code(const ExecutionPlan &ep) {
     return code.str();
 }
 
+/// Recursively visit the parent node until the parent is a packet borrow
+/// Then, start returning the code up to bottom - back down
+std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node, int changed_value, klee::ref<klee::Expr> value_modification) {
+    if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_Operation) {
+        if (ep_node->get_prev()->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_UnivariatePBS) {
+            auto univariate_pbs = std::static_pointer_cast<synapse::targets::tfhe::UnivariatePBS>(ep_node->get_prev()->get_prev()->get_module());
+
+            if (ep_node->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_Then) {
+                return "\t" + univariate_pbs->to_string(changed_value, value_modification, nullptr);
+            } else if (ep_node->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_Else) {
+                return "\t" + univariate_pbs->to_string(changed_value, nullptr, value_modification);
+            }
+        }
+    }
+}
+
+std::string synthesize_ep_code(const ExecutionPlan &ep) {
+    std::ostringstream code;
+
+    std::cout << "Synthesizing Execution Plan code..." << std::endl;
+
+    code << tfhe_initial_boiler_plate();
+
+    int number_of_values = 0;
+    auto packet_borrow_node = ep.find_node_by_module_type(
+        synapse::Module::ModuleType::tfhe_PacketBorrowNextSecret);
+    auto packet_borrow_module = std::static_pointer_cast<synapse::targets::tfhe::PacketBorrowNextSecret>(
+        packet_borrow_node->get_module());
+    std::cout << "test" << std::endl;
+    number_of_values = packet_borrow_module->get_chunk_values_amount();
+    std::cout << "test 2" << std::endl;
+
+    code << "\t// Packet Borrow Next Secret\n";
+
+    for (int n_value = 0; n_value < number_of_values; ++n_value) {
+        code << "\tlet val" << n_value
+             << ": FheUint = FheUint::encrypt(values[" << n_value
+             << "], &client_key);" << std::endl;
+    }
+
+    // (after printing the values) - Put code for counting time
+    code << "\tlet time = std::time::Instant::now();" << std::endl;
+
+    std::cout << "test 3" << std::endl;
+    std::vector<ExecutionPlanNode_ptr> packet_return_ep_nodes = ep.get_packet_return_chunks_ep_nodes();
+    std::cout << "test 4" << std::endl;
+
+    int packet_return_i = 0;
+    for (auto ep_node : packet_return_ep_nodes) {
+        std::cout << "Packet Return Chunk " << packet_return_i << std::endl;
+        auto operation_module = std::static_pointer_cast<synapse::targets::tfhe::Operation>(ep_node->get_module());
+
+        // If this Operation Module has nothing, no need to generate code
+        if (operation_module->get_modifications().empty()) {
+            // No changes for packet return chunk
+            std::cout << "-- No changes for packet return chunk" << std::endl;
+            continue;
+        }
+
+        std::vector<klee::ref<klee::Expr>> value_mods = operation_module->get_modifications_exprs();
+
+        for (int i = 0; i < value_mods.size(); ++i) {
+            if (value_mods[i].isNull()) {
+                std::cout << "Value " << i << " is null" << std::endl;
+                continue;
+            } else {
+                std::cout << "Value " << i << " is modified" << std::endl;
+            }
+
+            code << synthesize_code_aux(ep_node, i, value_mods[i]);
+        }
+
+        packet_return_i += 1;
+    }
+
+    code << tfhe_end_boiler_plate(number_of_values);
+
+    return code.str();
+}
+
 void synthesize_code(const ExecutionPlan &ep) {
     CodeGenerator code_generator(Out);
 
@@ -570,7 +657,8 @@ void synthesize_code(const ExecutionPlan &ep) {
         std::cerr << "Error opening file for writing!" << std::endl;
         return;  // or handle the error appropriately
     }
-    std::string code = produce_ep_code(extracted_ep);
+//    std::string code = produce_ep_code(extracted_ep);
+    std::string code = synthesize_ep_code(extracted_ep);
     myfile << code;
     myfile.flush();
     myfile.close();

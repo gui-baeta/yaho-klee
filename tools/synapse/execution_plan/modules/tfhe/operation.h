@@ -69,20 +69,20 @@ public:
             return result;
         }
 
-        // TODO Check if the previous node is a Conditional node. If not, bail
-        //  out
-        auto ep_node = ep.get_active_leaf();
-        auto prev_ep_node =
-            ep_node
-                ->get_prev();  // Get only the nearest previous Conditional node
-        if (!((ep_node->get_module()->get_type() == ModuleType::tfhe_Else ||
-               ep_node->get_module()->get_type() == ModuleType::tfhe_Then) &&
-              prev_ep_node->get_module()->get_type() ==
-                  ModuleType::tfhe_Conditional)) {
-            return result;
-        }
-
-        // TODO Check if this is a sum. If not, bail out
+//        // TODO Check if the previous node is a Conditional node. If not, bail
+//        //  out
+//        auto ep_node = ep.get_active_leaf();
+//        auto prev_ep_node =
+//            ep_node
+//                ->get_prev();  // Get only the nearest previous Conditional node
+//        if (!((ep_node->get_module()->get_type() == ModuleType::tfhe_Else ||
+//               ep_node->get_module()->get_type() == ModuleType::tfhe_Then) &&
+//              prev_ep_node->get_module()->get_type() ==
+//                  ModuleType::tfhe_Conditional)) {
+//            return result;
+//        }
+//
+//        // TODO Check if this is a sum. If not, bail out
 
         //    // Build the expression for this arm.
         //    auto _current_chunk =

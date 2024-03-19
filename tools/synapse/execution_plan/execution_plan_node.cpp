@@ -153,4 +153,8 @@ int ExecutionPlanNode::get_module_type() const {
     return this->get_module()->get_type();
 }
 
+klee::ref<klee::Expr> ExecutionPlanNode::get_module_condition() const {
+    return this->get_module()->get_expr();
+}
+
 }  // namespace synapse

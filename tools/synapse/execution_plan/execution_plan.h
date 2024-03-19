@@ -4,6 +4,7 @@
 #include "call-paths-to-bdd.h"
 #include "meta.h"
 #include "target.h"
+#include "../../call-paths-to-bdd/bdd/nodes/node.h"
 
 #include <klee/Constraints.h>
 
@@ -147,6 +148,12 @@ public:
   ExecutionPlan clone(BDD::BDD new_bdd) const;
   ExecutionPlan clone(bool deep = false) const;
 
+
+  ExecutionPlanNode_ptr find_node_by_module_type(int type) const;
+  std::vector<ExecutionPlanNode_ptr> get_packet_return_chunks_ep_nodes() const;
+
+
+
 private:
   void update_roots(const std::vector<leaf_t> &new_leaves);
   void update_leaves(const std::vector<leaf_t> &_leaves, bool is_terminal);
@@ -207,5 +214,4 @@ public:
     ~value_conditions_t() {
     }
 };
-
 } // namespace synapse

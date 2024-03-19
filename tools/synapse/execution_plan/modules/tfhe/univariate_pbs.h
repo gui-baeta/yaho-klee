@@ -72,14 +72,24 @@ private:
         // Save the value this condition depends on
         int _value_in_condition = values_in_condition.at(0);
 
-        // Bail out if any of the children is a branch/conditional
-        // TODO * Expect that the children are of the type PacketReturnChunk
+                // Return a branch if both the children are a branch
         if (branch_node->get_on_true()->get_type() ==
-                BDD::Node::NodeType::BRANCH ||
+                BDD::Node::NodeType::BRANCH &&
             branch_node->get_on_false()->get_type() ==
                 BDD::Node::NodeType::BRANCH) {
+
+            std::cout << "On Univariate PBS: Both children are branches. "
+                         "Univariate PBS can't be used when both children are branches" << std::endl;
+
             return result;
         }
+
+        if (branch_node->get_on_true()->get_type() == BDD::Node::NodeType::BRANCH ||
+            branch_node->get_on_false()->get_type() == BDD::Node::NodeType::BRANCH) {
+            std::cerr << "On Univariate PBS: One children is a branch and another isn't. Not supported yet" << std::endl;
+            exit(2);
+        }
+
         std::cout << "None of the Children are branches" << std::endl;
         // We can assume that the children are of the type PacketReturnChunk
 
@@ -126,95 +136,131 @@ private:
         std::vector<expr_ref> on_false_modifications =
             _on_false_module->get_modifications_exprs();
 
-        ExecutionPlan new_ep = ep.clone();
-        Module_ptr new_module;
+//        ExecutionPlan new_ep = ep.clone();
+//        Module_ptr new_module;
+//
+//        const int n = new_ep.get_next_value_of_node(this_node_id);
+//        expr_ref on_true_expr = on_true_modifications[n];
+//        expr_ref on_false_expr = on_false_modifications[n];
+//
+//        std::cout << "-- Value " << std::to_string(n) << "/"
+//                  << number_of_values - 1 << ":" << std::endl;
 
-        const int n = new_ep.get_next_value_of_node(this_node_id);
-        expr_ref on_true_expr = on_true_modifications[n];
-        expr_ref on_false_expr = on_false_modifications[n];
 
-        std::cout << "-- Value " << std::to_string(n) << "/"
-                  << number_of_values - 1 << ":" << std::endl;
+        auto new_branch_module = std::make_shared<UnivariatePBS>(node, _condition, nullptr, nullptr, -1, _value_in_condition);
+        auto new_then_module = std::make_shared<Then>(node);
+        auto new_else_module = std::make_shared<Else>(node);
 
-        if (on_true_expr.isNull() && on_false_expr.isNull()) {
-            std::cout << "Both modifications are null" << std::endl;
-            /* No operations needed since both are null/non-existent,
-             *
-             *  We continue to the next pair of values */
+        auto then_leaf =
+            ExecutionPlan::leaf_t(new_then_module, branch_node->get_on_true());
+        auto else_leaf =
+            ExecutionPlan::leaf_t(new_else_module, branch_node->get_on_false());
 
-            int _unchanged_value = n;
-            std::cout << "///////////////////////////////////////// value: "
-                      << _unchanged_value << std::endl;
-            new_module = std::make_shared<NoChange>(node, _unchanged_value);
+        std::vector<ExecutionPlan::leaf_t> then_else_leaves{then_leaf, else_leaf};
 
-            new_ep = new_ep.add_leaf(new_module, node, false, false);
-        } else if (kutil::solver_toolbox.are_exprs_always_equal(
-                       on_true_expr, on_false_expr)) {
-            /* Creates a Change Module when there is a modification to the
-             * value but no difference between branches */
-            std::cout << "Both modifications are equal" << std::endl;
-            /* Build a Change Module from the modification.
-             * Since both modifications are the same, we choose one
-             * arbitrarily */
+        std::shared_ptr<ExecutionPlan> _new_ep = nullptr;
 
-            int _changed_value = n;
-            std::cout << "///////////////////////////////////////// value: "
-                      << _changed_value << std::endl;
+        std::string parent_condition_name = ep.get_last_developed_node()->get_prev()->get_module_name();
+        std::string parent_condition_case = ep.get_last_developed_node()->get_module_name();
 
-            new_module = std::make_shared<Change>(
-                node, klee::ref<klee::Expr>(on_true_expr), _changed_value);
+        if (ep.get_last_developed_node()->get_module_type() == ModuleType::tfhe_Then ||
+            ep.get_last_developed_node()->get_module_type() == ModuleType::tfhe_Else) {
 
-            /* This node is not marked as terminal or processed since
-             * there could be other changes in other values */
-            new_ep = new_ep.add_leaf(new_module, node, false, false);
+            klee::ref<klee::Expr> parent_condition = ep.get_last_developed_node()->get_prev()->get_module_condition();
+            std::cout << "Last developed node is a Then/Else" << std::endl;
+//            _new_ep = std::make_shared<ExecutionPlan>(ep.replace_leaf(new_branch_module, nullptr, true));
+            _new_ep = std::make_shared<ExecutionPlan>(ep.add_leaf(new_branch_module, nullptr, false, true));
+
         } else {
-            /* Creates a new UnivariatePBS Module when there is a difference
-             * between the same value */
-
-            std::cout << "Both modifications are different" << std::endl;
-
-            int _changed_value = n;
-            std::cout << "///////////////////////////////////////// value: "
-                      << _changed_value << std::endl;
-
-            if (_changed_value != _value_in_condition) {
-                std::cout << "Changed value is different from value in "
-                             "condition and a MonoBPS cannot be used. Another "
-                             "Module may be able to process this node."
-                          << std::endl;
-                return result;
-            }
-
-            new_module = std::make_shared<UnivariatePBS>(
-                node, _condition, klee::ref<klee::Expr>(on_true_expr),
-                klee::ref<klee::Expr>(on_false_expr), _changed_value,
-                _value_in_condition);
-
-            /* Marked as terminal because both children are modifications */
-            new_ep = new_ep.add_leaf(new_module, node, false, false);
+            _new_ep = std::make_shared<ExecutionPlan>(ep.add_leaf(new_branch_module, nullptr, false, true));
         }
 
-        /* Sets this node "next_value" as the next value to be taken care of.
-         *
-         * This NEEDS to be done before checking if all values are cared for
-         */
-        new_ep.mark_value_as_done_for_node(this_node_id);
+        ExecutionPlan new_ep = _new_ep->add_leaves(then_else_leaves);
 
-        if (new_ep.all_values_marked_for_node(this_node_id, number_of_values)) {
-            /* mark the node as processed */
-            new_ep.add_processed_bdd_node(node->get_id(), number_of_values);
-        }
-
-        // If no new module was created,
-        // it means no modification was seen for this specific value
-        if (!new_module) {
-            return result;
-        }
-
-        result.module = new_module;
+        result.module = new_branch_module;
         result.next_eps.push_back(new_ep);
 
         return result;
+
+//        if (on_true_expr.isNull() && on_false_expr.isNull()) {
+//            std::cout << "Both modifications are null" << std::endl;
+//            /* No operations needed since both are null/non-existent,
+//             *
+//             *  We continue to the next pair of values */
+//
+//            int _unchanged_value = n;
+//            std::cout << "///////////////////////////////////////// value: "
+//                      << _unchanged_value << std::endl;
+//            new_module = std::make_shared<NoChange>(node, _unchanged_value);
+//
+//            new_ep = new_ep.add_leaf(new_module, node, false, false);
+//        } else if (kutil::solver_toolbox.are_exprs_always_equal(
+//                       on_true_expr, on_false_expr)) {
+//            /* Creates a Change Module when there is a modification to the
+//             * value but no difference between branches */
+//            std::cout << "Both modifications are equal" << std::endl;
+//            /* Build a Change Module from the modification.
+//             * Since both modifications are the same, we choose one
+//             * arbitrarily */
+//
+//            int _changed_value = n;
+//            std::cout << "///////////////////////////////////////// value: "
+//                      << _changed_value << std::endl;
+//
+//            new_module = std::make_shared<Change>(
+//                node, klee::ref<klee::Expr>(on_true_expr), _changed_value);
+//
+//            /* This node is not marked as terminal or processed since
+//             * there could be other changes in other values */
+//            new_ep = new_ep.add_leaf(new_module, node, false, false);
+//        } else {
+//            /* Creates a new UnivariatePBS Module when there is a difference
+//             * between the same value */
+//
+//            std::cout << "Both modifications are different" << std::endl;
+//
+//            int _changed_value = n;
+//            std::cout << "///////////////////////////////////////// value: "
+//                      << _changed_value << std::endl;
+//
+//            if (_changed_value != _value_in_condition) {
+//                std::cout << "Changed value is different from value in "
+//                             "condition and a MonoBPS cannot be used. Another "
+//                             "Module may be able to process this node."
+//                          << std::endl;
+//                return result;
+//            }
+//
+//            new_module = std::make_shared<UnivariatePBS>(
+//                node, _condition, klee::ref<klee::Expr>(on_true_expr),
+//                klee::ref<klee::Expr>(on_false_expr), _changed_value,
+//                _value_in_condition);
+//
+//            /* Marked as terminal because both children are modifications */
+//            new_ep = new_ep.add_leaf(new_module, node, false, false);
+//        }
+//
+//        /* Sets this node "next_value" as the next value to be taken care of.
+//         *
+//         * This NEEDS to be done before checking if all values are cared for
+//         */
+//        new_ep.mark_value_as_done_for_node(this_node_id);
+//
+//        if (new_ep.all_values_marked_for_node(this_node_id, number_of_values)) {
+//            /* mark the node as processed */
+//            new_ep.add_processed_bdd_node(node->get_id(), number_of_values);
+//        }
+//
+//        // If no new module was created,
+//        // it means no modification was seen for this specific value
+//        if (!new_module) {
+//            return result;
+//        }
+//
+//        result.module = new_module;
+//        result.next_eps.push_back(new_ep);
+//
+//        return result;
     }
 
 public:
@@ -277,6 +323,10 @@ public:
         return this->condition;
     }
 
+    klee::ref<klee::Expr> get_expr() const override {
+        return this->condition;
+    }
+
     const klee::ref<klee::Expr> &get_then_modification() const {
         return this->then_modification;
     }
@@ -289,6 +339,9 @@ public:
 
     int get_value_in_condition() const { return this->value_in_condition; }
 
+    std::string changed_value_to_string(int changed_value) const {
+        return std::string("val") + std::to_string(changed_value);
+    }
     std::string changed_value_to_string() const {
         return std::string("val") + std::to_string(this->changed_value);
     }
@@ -303,6 +356,36 @@ public:
     }
     std::string else_modification_to_string(bool needs_cloning = true) const {
         return generate_tfhe_code(this->else_modification, needs_cloning);
+    }
+
+    std::string to_string(int changed_value, klee::ref<klee::Expr> then_operation, klee::ref<klee::Expr> else_operation) const {
+        std::ostringstream s;
+
+        std::string value = this->changed_value_to_string(changed_value);
+        std::string condition_value = this->value_in_condition_to_string();
+        // TODO I Could potentially flip this condition if there is no Then
+        //  modification
+        std::string condition = this->condition_to_string();
+        std::string then_op = generate_tfhe_code(then_operation, false);
+        std::string else_op = generate_tfhe_code(else_operation, false);
+
+        if (!else_op.empty() && !then_op.empty()) {
+            s << "let " << value << " = " << condition_value << ".map(|"
+              << condition_value << "| if " << condition << " { " << then_op
+              << " } else { " << else_op << " }";
+        } else if (then_op.empty()) {
+            s << "let " << value << " = " << condition_value << ".map(|"
+              << condition_value << "| if " << condition << " { " << value
+              << " } else { " << else_op << " }";
+        } else if (else_op.empty()) {
+            s << "let " << value << " = " << condition_value << ".map(|"
+              << condition_value << "| if " << condition << " { " << then_op
+              << " } else { " << value << " }";
+        }
+
+        s << ");" << std::endl;
+
+        return s.str();
     }
 
     std::string to_string() const {

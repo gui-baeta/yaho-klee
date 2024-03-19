@@ -71,6 +71,7 @@ public:
 
     std::string get_module_name() const;
     int get_module_type() const;
+    klee::ref<klee::Expr> get_module_condition() const;
 
 private:
     static ep_node_id_t counter;
