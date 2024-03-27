@@ -16,8 +16,6 @@ enum TargetType {
   x86_BMv2,
   x86_Tofino,
   Tofino,
-  Netronome,
-  FPGA,
   BMv2,
 };
 

@@ -271,12 +271,6 @@ CodeGenerator::bmv2_extractor(const ExecutionPlan &execution_plan) const {
   return extracted;
 }
 
-ExecutionPlan
-CodeGenerator::fpga_extractor(const ExecutionPlan &execution_plan) const {
-  assert(false && "TODO");
-  exit(1);
-}
-
 struct x86_tofino_root_info_t {
   targets::tofino::cpu_code_path_t cpu_code_path;
   BDD::symbols_t dataplane_state;
@@ -435,12 +429,6 @@ CodeGenerator::tofino_extractor(const ExecutionPlan &execution_plan) const {
   // Graphviz::visualize(extracted);
 
   return extracted;
-}
-
-ExecutionPlan
-CodeGenerator::netronome_extractor(const ExecutionPlan &execution_plan) const {
-  assert(false && "TODO");
-  exit(1);
 }
 
 ExecutionPlan

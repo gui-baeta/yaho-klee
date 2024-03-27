@@ -41,9 +41,7 @@ private:
   ExecutionPlan x86_bmv2_extractor(const ExecutionPlan &execution_plan) const;
   ExecutionPlan x86_tofino_extractor(const ExecutionPlan &execution_plan) const;
   ExecutionPlan bmv2_extractor(const ExecutionPlan &execution_plan) const;
-  ExecutionPlan fpga_extractor(const ExecutionPlan &execution_plan) const;
   ExecutionPlan tofino_extractor(const ExecutionPlan &execution_plan) const;
-  ExecutionPlan netronome_extractor(const ExecutionPlan &execution_plan) const;
 
   std::string directory;
 
@@ -57,8 +55,6 @@ public:
         {TargetType::BMv2, target_helper_t(&CodeGenerator::bmv2_extractor,
                                            std::make_shared<BMv2Generator>())},
 
-        {TargetType::FPGA, target_helper_t(&CodeGenerator::fpga_extractor)},
-
         {TargetType::x86_Tofino,
          target_helper_t(&CodeGenerator::x86_tofino_extractor,
                          std::make_shared<x86TofinoGenerator>())},
@@ -66,9 +62,6 @@ public:
         {TargetType::Tofino,
          target_helper_t(&CodeGenerator::tofino_extractor,
                          std::make_shared<TofinoGenerator>())},
-
-        {TargetType::Netronome,
-         target_helper_t(&CodeGenerator::netronome_extractor)},
 
         {TargetType::x86, target_helper_t(&CodeGenerator::x86_extractor,
                                           std::make_shared<x86Generator>())},
@@ -95,17 +88,11 @@ public:
     case TargetType::BMv2:
       output_file += "bmv2.p4";
       break;
-    case TargetType::FPGA:
-      output_file += "fpga.v";
-      break;
     case TargetType::x86_Tofino:
       output_file += "tofino-x86.cpp";
       break;
     case TargetType::Tofino:
       output_file += "tofino.p4";
-      break;
-    case TargetType::Netronome:
-      output_file += "netronome.c";
       break;
     case TargetType::x86:
       output_file += "x86.c";

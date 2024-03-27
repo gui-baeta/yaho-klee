@@ -37,8 +37,6 @@ public:
     node_colors = std::map<TargetType, std::string>{
         {TargetType::BMv2, "darkolivegreen2"},
         {TargetType::Tofino, "cornflowerblue"},
-        {TargetType::Netronome, "gold"},
-        {TargetType::FPGA, "coral1"},
         {TargetType::x86_BMv2, "darkorange2"},
         {TargetType::x86_Tofino, "firebrick2"},
         {TargetType::x86, "cadetblue1"},

@@ -56,12 +56,6 @@ public:
     case TargetType::Tofino:
       targets.push_back(targets::tofino::TofinoTarget::build());
       break;
-    case TargetType::Netronome:
-      targets.push_back(targets::netronome::NetronomeTarget::build());
-      break;
-    case TargetType::FPGA:
-      targets.push_back(targets::fpga::FPGATarget::build());
-      break;
     case TargetType::BMv2:
       targets.push_back(targets::bmv2::BMv2Target::build());
       break;

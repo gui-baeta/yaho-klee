@@ -50,8 +50,6 @@ llvm::cl::list<TargetType> TargetList(
     desc("Available targets:"), Required, OneOrMore,
     values(clEnumValN(TargetType::x86_BMv2, "x86-bmv2", "BMv2 ctrl (C)"),
            clEnumValN(TargetType::BMv2, "bmv2", "BMv2 (P4)"),
-           clEnumValN(TargetType::FPGA, "fpga", "FPGA (veriLog)"),
-           clEnumValN(TargetType::Netronome, "netronome", "Netronome (uC)"),
            clEnumValN(TargetType::Tofino, "tofino", "Tofino (P4)"),
            clEnumValN(TargetType::x86_Tofino, "x86-tofino",
                       "Tofino ctrl (C++)"),

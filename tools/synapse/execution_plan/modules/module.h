@@ -213,10 +213,6 @@ public:
       return "x86 (Tofino)";
     case Tofino:
       return "Tofino";
-    case Netronome:
-      return "Netronome";
-    case FPGA:
-      return "FPGA";
     case BMv2:
       return "BMv2";
     case x86:
