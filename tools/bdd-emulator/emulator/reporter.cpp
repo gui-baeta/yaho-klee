@@ -54,7 +54,8 @@ std::string Reporter::get_elapsed() {
 }
 
 std::string Reporter::get_elapsed(time_ns_t _time) {
-  auto elapsed = std::chrono::nanoseconds(_time);
+  assert(_time >= virtual_time_start && "Time can't be negative");
+  auto elapsed = std::chrono::nanoseconds(_time - virtual_time_start);
   return get_human_readable_time_duration(elapsed);
 }
 

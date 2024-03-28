@@ -35,12 +35,13 @@ private:
   uint64_t next_report;
 
   steady_clock::time_point real_time_start;
+  time_ns_t virtual_time_start;
 
 public:
   Reporter(const BDD &_bdd, const meta_t &_meta, bool _warmup_mode)
       : bdd(_bdd), meta(_meta), num_packets(0), warmup_mode(_warmup_mode),
         packet_counter(0), time(0), next_report(0),
-        real_time_start(steady_clock::now()) {
+        real_time_start(steady_clock::now()), virtual_time_start(0) {
     struct termios term;
     tcgetattr(fileno(stdin), &term);
 
@@ -59,7 +60,9 @@ private:
 
   void stop_warmup() { warmup_mode = false; }
   void inc_packet_counter() { packet_counter++; }
+
   void set_time(time_ns_t _time) { time = _time; }
+  void set_virtual_time_start(time_ns_t _time) { virtual_time_start = _time; }
 
   void show(bool force_update = false);
 

@@ -184,9 +184,17 @@ void Emulator::run(const std::string &pcap_filename, uint16_t device) {
         auto dt = (time_ns_t)(((pkt.size + IPG + CRC) * 8) / cfg.rate.second);
         time += dt;
         meta.elapsed += dt;
+
+        if (meta.packet_counter == 0) {
+          reporter.set_virtual_time_start(time);
+        }
       } else {
         auto last_time = time;
         time = header->ts.tv_sec * 1e9 + header->ts.tv_usec * 1e6;
+
+        if (meta.packet_counter == 0 || last_time > time) {
+          reporter.set_virtual_time_start(time);
+        }
 
         auto dt = time - last_time;
         meta.elapsed += dt;
