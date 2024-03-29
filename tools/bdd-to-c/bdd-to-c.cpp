@@ -220,7 +220,7 @@ void build_ast(AST &ast, const BDD::BDD &bdd, TargetOption target) {
   assert(init);
   assert(process);
 
-  auto code_paths = init->count_code_paths() + process->count_code_paths() - 1;
+  auto code_paths = process->count_code_paths();
 
   auto init_root = build_ast(ast, bdd.get_init().get(), target);
   std::vector<Node_ptr> intro_nodes;
@@ -399,6 +399,33 @@ BDD::BDD build_bdd() {
   return BDD::BDD(call_paths);
 }
 
+void synthesize(const AST &ast, TargetOption target, std::ostream &out) {
+  // Not very OS friendly, but oh well...
+  auto source_file = std::string(__FILE__);
+  auto boilerplate_path =
+      source_file.substr(0, source_file.rfind("/")) + "/boilerplates/";
+
+  switch (target) {
+  case SEQUENTIAL: {
+    boilerplate_path += "sequential.c";
+    break;
+  }
+  case CALL_PATH_HITTER: {
+    boilerplate_path += "callpath-hit-rate.c";
+    break;
+  }
+  default: {
+    assert(false && "No boilerplate for this target");
+    std::cerr << "ERROR: no boilerplate for this target\n";
+    exit(1);
+  }
+  }
+
+  auto boilerplate = std::ifstream(boilerplate_path);
+  out << boilerplate.rdbuf();
+  ast.print(out);
+}
+
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
@@ -411,9 +438,9 @@ int main(int argc, char **argv) {
   if (Out.size()) {
     auto file = std::ofstream(Out);
     assert(file.is_open());
-    ast.print(file);
+    synthesize(ast, Target, file);
   } else {
-    ast.print(std::cout);
+    synthesize(ast, Target, std::cout);
   }
 
   if (XML.size()) {

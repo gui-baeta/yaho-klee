@@ -89,6 +89,11 @@ int main(int argc, char **argv) {
     call_paths.push_back(call_path);
   }
 
+  if (InputBDDFile.size() == 0 && InputCallPathFiles.size() == 0) {
+    std::cerr << "No input files provided.\n";
+    return 1;
+  }
+
   auto bdd =
       InputBDDFile.size() ? BDD::BDD(InputBDDFile) : BDD::BDD(call_paths);
 

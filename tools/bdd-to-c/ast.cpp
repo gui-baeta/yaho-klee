@@ -382,6 +382,7 @@ Variable_ptr AST::get_from_state(unsigned int addr) {
   dump_stack();
   std::cerr << "Address requested: " << addr << "\n";
   assert(false && "No variable allocated in this address");
+  exit(1);
 }
 
 Expr_ptr AST::get_from_local(klee::ref<klee::Expr> expr) {
@@ -527,50 +528,11 @@ Node_ptr AST::init_state_node_from_call(const BDD::Call *bdd_call,
     uint64_t map_addr =
         (static_cast<Constant *>(map_out_expr.get()))->get_value();
 
-    assert(call.args["keq"].fn_ptr_name.first);
-    assert(call.args["khash"].fn_ptr_name.first);
-
-    Type_ptr void_type =
-        PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
-
-    Expr_ptr keq =
-        Variable::build(call.args["keq"].fn_ptr_name.second, void_type);
-    assert(keq);
-
-    auto keq_ret_type =
-        PrimitiveType::build(PrimitiveType::PrimitiveKind::BOOL);
-    std::vector<FunctionArgDecl_ptr> keq_args{
-        FunctionArgDecl::build("a", Pointer::build(void_type)),
-        FunctionArgDecl::build("b", Pointer::build(void_type)),
-    };
-
-    auto keq_decl = Function::build(call.args["keq"].fn_ptr_name.second,
-                                    keq_args, keq_ret_type);
-    keq_decl->set_terminate_line(true);
-
-    if (!function_in_global_code(call.args["keq"].fn_ptr_name.second)) {
-      push_global_code(keq_decl);
-    }
-
-    Expr_ptr khash =
-        Variable::build(call.args["khash"].fn_ptr_name.second, void_type);
-    assert(khash);
-
-    auto khash_ret_type =
-        PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT32_T);
-    std::vector<FunctionArgDecl_ptr> khash_args{
-        FunctionArgDecl::build("obj", Pointer::build(void_type)),
-    };
-    auto kash_decl = Function::build(call.args["khash"].fn_ptr_name.second,
-                                     khash_args, khash_ret_type);
-    kash_decl->set_terminate_line(true);
-
-    if (!function_in_global_code(call.args["khash"].fn_ptr_name.second)) {
-      push_global_code(kash_decl);
-    }
-
     Expr_ptr capacity = transpile(this, call.args["capacity"].expr);
     assert(capacity);
+
+    Expr_ptr key_size = transpile(this, call.args["key_size"].expr);
+    assert(key_size);
 
     if (target == TargetOption::SHARED_NOTHING) {
       capacity = spread_capacity_among_cores(capacity);
@@ -589,7 +551,7 @@ Node_ptr AST::init_state_node_from_call(const BDD::Call *bdd_call,
                                     map_type, 1, 0);
     }
 
-    args = std::vector<ExpressionType_ptr>{keq, khash, capacity,
+    args = std::vector<ExpressionType_ptr>{capacity, key_size,
                                            AddressOf::build(new_map)};
 
     ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
@@ -600,31 +562,11 @@ Node_ptr AST::init_state_node_from_call(const BDD::Call *bdd_call,
     uint64_t vector_addr =
         (static_cast<Constant *>(vector_out_expr.get()))->get_value();
 
-    assert(call.args["init_elem"].fn_ptr_name.first);
-    Type_ptr void_type =
-        PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
-
     Expr_ptr elem_size = transpile(this, call.args["elem_size"].expr);
     assert(elem_size);
+
     Expr_ptr capacity = transpile(this, call.args["capacity"].expr);
     assert(capacity);
-
-    Expr_ptr init_elem =
-        Variable::build(call.args["init_elem"].fn_ptr_name.second, void_type);
-    assert(init_elem);
-
-    auto init_elem_ret_type =
-        PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
-    std::vector<FunctionArgDecl_ptr> init_elem_args{
-        FunctionArgDecl::build("obj", Pointer::build(void_type)),
-    };
-    auto init_elem_decl =
-        Function::build(call.args["init_elem"].fn_ptr_name.second,
-                        init_elem_args, init_elem_ret_type);
-    init_elem_decl->set_terminate_line(true);
-    if (!function_in_global_code(call.args["init_elem"].fn_ptr_name.second)) {
-      push_global_code(init_elem_decl);
-    }
 
     Type_ptr vector_type = Struct::build(translate_struct("Vector", target));
     Variable_ptr new_vector = generate_new_symbol("vector", vector_type, 1, 0);
@@ -643,7 +585,7 @@ Node_ptr AST::init_state_node_from_call(const BDD::Call *bdd_call,
       capacity = spread_capacity_among_cores(capacity);
     }
 
-    args = std::vector<ExpressionType_ptr>{elem_size, capacity, init_elem,
+    args = std::vector<ExpressionType_ptr>{elem_size, capacity,
                                            AddressOf::build(new_vector)};
 
     ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
@@ -681,31 +623,14 @@ Node_ptr AST::init_state_node_from_call(const BDD::Call *bdd_call,
     ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
     ret_symbol = get_symbol_label("is_dchain_allocated", symbols);
   } else if (fname == "sketch_allocate") {
-    assert(call.args["khash"].fn_ptr_name.first);
-    Type_ptr void_type =
-        PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
-    Expr_ptr khash =
-        Variable::build(call.args["khash"].fn_ptr_name.second, void_type);
-    assert(khash);
-
-    auto khash_ret_type =
-        PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT32_T);
-    std::vector<FunctionArgDecl_ptr> khash_args{
-        FunctionArgDecl::build("obj", Pointer::build(void_type)),
-    };
-    auto kash_decl = Function::build(call.args["khash"].fn_ptr_name.second,
-                                     khash_args, khash_ret_type);
-    kash_decl->set_terminate_line(true);
-
-    if (!function_in_global_code(call.args["khash"].fn_ptr_name.second)) {
-      push_global_code(kash_decl);
-    }
-
     Expr_ptr capacity = transpile(this, call.args["capacity"].expr);
     assert(capacity);
 
     Expr_ptr threshold = transpile(this, call.args["threshold"].expr);
     assert(threshold);
+
+    Expr_ptr key_size = transpile(this, call.args["key_size"].expr);
+    assert(key_size);
 
     Expr_ptr sketch_out_expr = transpile(this, call.args["sketch_out"].out);
     assert(sketch_out_expr->get_kind() == Node::NodeKind::CONSTANT);
@@ -729,7 +654,7 @@ Node_ptr AST::init_state_node_from_call(const BDD::Call *bdd_call,
       capacity = spread_capacity_among_cores(capacity);
     }
 
-    args = std::vector<ExpressionType_ptr>{khash, capacity, threshold,
+    args = std::vector<ExpressionType_ptr>{capacity, threshold, key_size,
                                            AddressOf::build(new_sketch)};
 
     ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);

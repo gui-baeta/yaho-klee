@@ -162,8 +162,8 @@ unsigned Node::count_code_paths() const {
     case Node::NodeType::RETURN_PROCESS:
     case Node::NodeType::RETURN_RAW:
       paths++;
+      break;
     }
-    break;
   }
 
   return paths;
