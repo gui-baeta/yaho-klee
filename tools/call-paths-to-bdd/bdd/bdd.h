@@ -64,12 +64,14 @@ public:
   void set_init(const Node_ptr &node) { nf_init = node; }
   void set_process(const Node_ptr &node) { nf_process = node; }
 
+  // I/O
   void serialize(std::string file_path) const;
   void deserialize(const std::string &file_path);
 
+  // Useful operations
   std::string hash() const;
-
   klee::ref<klee::Expr> get_symbol(const std::string &name) const;
+  uint64_t get_max_node_id() const;
 
 public:
   friend class CallPathsGroup;

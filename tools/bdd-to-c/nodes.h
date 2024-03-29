@@ -8,7 +8,7 @@
 #include "klee-util.h"
 #include "load-call-paths.h"
 
-enum TargetOption { SEQUENTIAL, SHARED_NOTHING, LOCKS, TM, CALL_PATH_HITTER };
+enum TargetOption { SEQUENTIAL, SHARED_NOTHING, LOCKS, TM, BDD_NODE_HIT_RATE };
 
 class AST;
 
@@ -618,6 +618,8 @@ private:
       : Node(BLOCK), nodes(block->nodes), enclose(_enclose) {}
 
 public:
+  void preppend(Node_ptr node) { nodes.insert(nodes.begin(), node); }
+
   void set_enclose(bool _enclose) { enclose = _enclose; }
 
   void synthesize(std::ostream &ofs, unsigned int lvl = 0) const override {
@@ -3078,5 +3080,5 @@ public:
 
 typedef std::shared_ptr<Assignment> Assignment_ptr;
 
-Type_ptr type_from_size(uint64_t size);
-Type_ptr type_from_size(uint64_t size, bool force_byte_array);
+Type_ptr type_from_size(uint64_t size, bool is_signed = false);
+Type_ptr type_from_size(uint64_t size, bool is_signed, bool force_byte_array);

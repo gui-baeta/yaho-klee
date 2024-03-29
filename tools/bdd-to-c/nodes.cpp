@@ -338,9 +338,11 @@ Expr_ptr Assignment::simplify(AST *ast) const {
   return Assignment::build(variable_simplified, value_simplified);
 }
 
-Type_ptr type_from_size(uint64_t size) { return type_from_size(size, false); }
+Type_ptr type_from_size(uint64_t size, bool is_signed) {
+  return type_from_size(size, is_signed, false);
+}
 
-Type_ptr type_from_size(uint64_t size, bool force_byte_array) {
+Type_ptr type_from_size(uint64_t size, bool is_signed, bool force_byte_array) {
   Type_ptr type;
 
   if (force_byte_array) {
@@ -359,16 +361,24 @@ Type_ptr type_from_size(uint64_t size, bool force_byte_array) {
     type = PrimitiveType::build(PrimitiveType::PrimitiveKind::BOOL);
     break;
   case 8:
-    type = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT8_T);
+    type = is_signed
+               ? PrimitiveType::build(PrimitiveType::PrimitiveKind::INT8_T)
+               : PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT8_T);
     break;
   case 16:
-    type = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T);
+    type = is_signed
+               ? PrimitiveType::build(PrimitiveType::PrimitiveKind::INT16_T)
+               : PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T);
     break;
   case 32:
-    type = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT32_T);
+    type = is_signed
+               ? PrimitiveType::build(PrimitiveType::PrimitiveKind::INT32_T)
+               : PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT32_T);
     break;
   case 64:
-    type = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT64_T);
+    type = is_signed
+               ? PrimitiveType::build(PrimitiveType::PrimitiveKind::INT64_T)
+               : PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT64_T);
     break;
   default:
     if (size % 8 != 0) {

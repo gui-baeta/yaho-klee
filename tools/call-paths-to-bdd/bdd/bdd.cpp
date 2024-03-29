@@ -724,4 +724,34 @@ klee::ref<klee::Expr> BDD::get_symbol(const std::string &name) const {
   return read_entire_symbol;
 }
 
+uint64_t BDD::get_max_node_id() const {
+  std::vector<Node_ptr> nodes{nf_init, nf_process};
+  uint64_t max_id = 0;
+
+  while (nodes.size()) {
+    auto node = nodes[0];
+    nodes.erase(nodes.begin());
+
+    if (node->get_id() > max_id) {
+      max_id = node->get_id();
+    }
+
+    switch (node->get_type()) {
+    case Node::NodeType::CALL: {
+      auto call_node = static_cast<Call *>(node.get());
+      nodes.push_back(call_node->get_next());
+    } break;
+    case Node::NodeType::BRANCH: {
+      auto branch_node = static_cast<Branch *>(node.get());
+      nodes.push_back(branch_node->get_on_true());
+      nodes.push_back(branch_node->get_on_false());
+    } break;
+    default:
+      continue;
+    }
+  }
+
+  return max_id;
+}
+
 } // namespace BDD

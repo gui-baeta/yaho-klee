@@ -1,10 +1,19 @@
-#define _GNU_SOURCE
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <lib/unverified/sketch.h>
 #include <lib/verified/cht.h>
 #include <lib/verified/double-chain.h>
 #include <lib/verified/map.h>
 #include <lib/verified/vector.h>
+
+#include <lib/verified/expirator.h>
+#include <lib/verified/packet-io.h>
+#include <lib/verified/tcpudp_hdr.h>
+#include <lib/verified/vigor-time.h>
+#ifdef __cplusplus
+}
+#endif
 
 #include <lib/verified/expirator.h>
 #include <lib/verified/packet-io.h>
@@ -23,10 +32,7 @@
 #include <rte_mbuf.h>
 #include <rte_random.h>
 
-#include <getopt.h>
-#include <pcap.h>
 #include <stdbool.h>
-#include <unistd.h>
 
 #define NF_INFO(text, ...)                                                     \
   printf(text "\n", ##__VA_ARGS__);                                            \
@@ -133,95 +139,6 @@ static int nf_init_device(uint16_t device, struct rte_mempool *mbuf_pool) {
   return 0;
 }
 
-struct pkt {
-  uint64_t ts;
-  uint32_t pktlen;
-  uint8_t *pkt;
-  unsigned device;
-};
-
-int packet_timestamp_comparator(const void *a, const void *b) {
-  struct pkt *p1 = (struct pkt *)a;
-  struct pkt *p2 = (struct pkt *)b;
-
-  if (p1->ts > p2->ts) {
-    return 1;
-  }
-
-  if (p1->ts < p2->ts) {
-    return -1;
-  }
-
-  return 0;
-}
-
-struct pkts {
-  struct pkt *pkts;
-  unsigned n_pkts;
-  unsigned reserved;
-};
-
-struct pkts pkts;
-
-uint64_t *call_path_hit_counter_ptr;
-unsigned call_path_hit_counter_sz;
-
-void packetHandler(uint8_t *userData, const struct pcap_pkthdr *pkthdr,
-                   const uint8_t *packet) {
-  if (pkts.reserved <= pkts.n_pkts) {
-    pkts.reserved = pkts.n_pkts + 1000;
-    pkts.pkts =
-        (struct pkt *)realloc(pkts.pkts, sizeof(struct pkt) * pkts.reserved);
-  }
-
-  unsigned device = *((unsigned *)userData);
-
-  pkts.pkts[pkts.n_pkts].ts =
-      ((uint64_t)pkthdr->ts.tv_sec) * 1e9 + (uint64_t)pkthdr->ts.tv_usec * 1e3;
-  pkts.pkts[pkts.n_pkts].pktlen = pkthdr->len;
-  pkts.pkts[pkts.n_pkts].pkt = (uint8_t *)malloc(sizeof(uint8_t) * pkthdr->len);
-  memcpy(pkts.pkts[pkts.n_pkts].pkt, packet, pkthdr->len);
-  pkts.pkts[pkts.n_pkts].device = device;
-  pkts.n_pkts++;
-}
-
-void load_pkts(const char *pcap, unsigned device) {
-  pcap_t *descr;
-  char errbuf[PCAP_ERRBUF_SIZE];
-
-  printf("Loading packets (device=%u, pcap=%s)\n", device, pcap);
-
-  descr = pcap_open_offline(pcap, errbuf);
-  if (descr == NULL) {
-    printf("pcap %s\n", pcap);
-    rte_exit(EXIT_FAILURE, "pcap_open_offline() failed: %s\n", errbuf);
-  }
-
-  if (pcap_loop(descr, -1, packetHandler, (uint8_t *)&device) < 0) {
-    rte_exit(EXIT_FAILURE, "pcap_loop() failed\n");
-  }
-
-  if (pkts.reserved > pkts.n_pkts) {
-    pkts.pkts =
-        (struct pkt *)realloc(pkts.pkts, sizeof(struct pkt) * pkts.n_pkts);
-  }
-
-  pcap_close(descr);
-}
-
-struct device_conf_t {
-  uint16_t device_id;
-  const char *pcap;
-};
-
-struct config_t {
-  struct device_conf_t *devices_conf;
-  uint16_t devices;
-  uint32_t loops;
-};
-
-struct config_t config;
-
 // Main worker method (for now used on a single thread...)
 static void worker_main(void) {
   if (!nf_init()) {
@@ -268,112 +185,6 @@ static void worker_main(void) {
                                     // the unverified case anyway
       }
     }
-  }
-}
-
-void nf_config_usage(void) {
-  NF_INFO("Usage:\n"
-          "[DPDK EAL options] -- [<device:pcap> ...] --loops <loops>\n"
-          "\n"
-          "\t device: networking device to feed the pcap\n"
-          "\t pcap: traffic trace to analyze\n"
-          "\t loops: number of times to loop the pcap\n");
-}
-
-void nf_config_print(void) {
-  NF_INFO("\n--- Config ---\n");
-
-  for (uint16_t device = 0; device < config.devices; device++) {
-    NF_INFO("device: %" PRIu16 " PCAP:%s", device,
-            config.devices_conf[device].pcap);
-  }
-  NF_INFO("loops: %" PRIu32, config.loops);
-
-  NF_INFO("\n--- --- ------ ---\n");
-}
-
-#define PARSE_ERROR(format, ...)                                               \
-  nf_config_usage();                                                           \
-  fprintf(stderr, format, ##__VA_ARGS__);                                      \
-  exit(EXIT_FAILURE);
-
-void nf_config_init_device(uint16_t device_id) {
-  for (int i = 0; i < config.devices; i++) {
-    if (config.devices_conf[i].device_id == device_id) {
-      PARSE_ERROR("Duplicated device: %" PRIu16 ".", device_id);
-    }
-  }
-
-  config.devices++;
-  config.devices_conf = (struct device_conf_t *)realloc(
-      config.devices_conf, sizeof(struct device_conf_t) * config.devices);
-
-  config.devices_conf[config.devices - 1].pcap = NULL;
-  config.devices_conf[config.devices - 1].device_id = device_id;
-}
-
-void nf_config_init(int argc, char **argv) {
-  config.devices = 0;
-  config.loops = 1;
-
-  struct option long_options[] = {{"loops", required_argument, NULL, 'l'},
-                                  {NULL, 0, NULL, 0}};
-
-  int opt;
-  opterr = 0;
-  while ((opt = getopt_long(argc, argv, "l:", long_options, NULL)) != EOF) {
-    switch (opt) {
-    case 'l': {
-      config.loops = nf_util_parse_int(optarg, "loops", 10, '\0');
-      break;
-    }
-
-    default:
-      PARSE_ERROR("Unknown option.\n");
-    }
-  }
-
-  for (int iarg = optind; iarg < argc; iarg++) {
-    const char *delim = ":";
-    char *token;
-
-    token = strtok(argv[iarg], delim);
-    if (token == NULL) {
-      PARSE_ERROR("Missing \"device\" argument.\n");
-    }
-
-    uint16_t device_id = nf_util_parse_int(token, "device", 10, '\0');
-    nf_config_init_device(device_id);
-
-    token = strtok(NULL, delim);
-    if (token == NULL) {
-      PARSE_ERROR("Missing \"pcap\" argument.\n");
-    }
-
-    if (access(token, F_OK) != 0) {
-      PARSE_ERROR("No such file \"%s\".\n", token);
-    }
-
-    config.devices_conf[config.devices - 1].pcap = token;
-  }
-
-  pkts.pkts = NULL;
-  pkts.n_pkts = 0;
-  pkts.reserved = 0;
-
-  for (int i = 0; i < config.devices; i++) {
-    load_pkts(config.devices_conf[i].pcap, config.devices_conf[i].device_id);
-  }
-
-  printf("Sorting %u packets...\n", pkts.n_pkts);
-  qsort(pkts.pkts, pkts.n_pkts, sizeof(struct pkt),
-        packet_timestamp_comparator);
-
-  uint64_t last_ts = 0;
-  for (unsigned i = 0; i < pkts.n_pkts; i++) {
-    struct pkt pkt = pkts.pkts[i];
-    assert(pkt.ts >= last_ts);
-    last_ts = pkt.ts;
   }
 }
 

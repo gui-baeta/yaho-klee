@@ -12,9 +12,9 @@
 #include <vector>
 
 #include "call-paths-to-bdd.h"
+#include "klee-util.h"
 #include "klee_transpiler.h"
 #include "load-call-paths.h"
-#include "klee-util.h"
 #include "nodes.h"
 
 class AST {
@@ -75,7 +75,8 @@ public:
   std::string from_cp_symbol(std::string name);
 
 private:
-  Variable_ptr generate_new_symbol(klee::ref<klee::Expr> expr);
+  Variable_ptr generate_new_symbol(klee::ref<klee::Expr> expr,
+                                   bool is_signed = false);
   Variable_ptr generate_new_symbol(std::string symbol, Type_ptr type,
                                    unsigned int ptr_lvl,
                                    unsigned int counter_begins);

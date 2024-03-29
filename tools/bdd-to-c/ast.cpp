@@ -104,8 +104,9 @@ klee::ref<klee::Expr> fix_key_klee_expr(klee::ref<klee::Expr> key) {
   return concat;
 }
 
-Variable_ptr AST::generate_new_symbol(klee::ref<klee::Expr> expr) {
-  Type_ptr type = type_from_size(expr->getWidth());
+Variable_ptr AST::generate_new_symbol(klee::ref<klee::Expr> expr,
+                                      bool is_signed) {
+  Type_ptr type = type_from_size(expr->getWidth(), is_signed);
 
   kutil::RetrieveSymbols retriever;
   retriever.visit(expr);
@@ -1273,7 +1274,8 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
     Expr_ptr chain = get_from_state(chain_addr);
     assert(chain);
 
-    Variable_ptr index_out = generate_new_symbol(call.args["index_out"].out);
+    Variable_ptr index_out =
+        generate_new_symbol(call.args["index_out"].out, true);
     assert(index_out);
     push_to_local(index_out, call.args["index_out"].out);
 
