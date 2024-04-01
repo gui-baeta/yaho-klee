@@ -563,18 +563,67 @@ std::string produce_ep_code(const ExecutionPlan &ep) {
 
 /// Recursively visit the parent node until the parent is a packet borrow
 /// Then, start returning the code up to bottom - back down
-std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node, int changed_value, klee::ref<klee::Expr> value_modification) {
+std::string synthesize_code_aux(ExecutionPlanNode_ptr ep_node, int changed_value, klee::ref<klee::Expr> value_modification, int then_arm = -1) {
     if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_Operation) {
-        if (ep_node->get_prev()->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_UnivariatePBS) {
-            auto univariate_pbs = std::static_pointer_cast<synapse::targets::tfhe::UnivariatePBS>(ep_node->get_prev()->get_prev()->get_module());
 
-            if (ep_node->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_Then) {
-                return "\t" + univariate_pbs->to_string(changed_value, value_modification, nullptr);
-            } else if (ep_node->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_Else) {
-                return "\t" + univariate_pbs->to_string(changed_value, nullptr, value_modification);
-            }
-        }
+        return "\t" + std::string("let val") + std::to_string(changed_value) + " = (" + generate_tfhe_code(value_modification, true) + ")" +
+               synthesize_code_aux(ep_node->get_prev(), changed_value, nullptr);
+
+//        if (ep_node->get_prev()->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_UnivariatePBS) {
+//            std::cout << "Found an Univariate PBS..." << std::endl;
+//            std::string then_str = ep_node->get_prev()->get_prev()->get_module()->univariate_pbs_to_string(changed_value, nullptr, nullptr, false);
+//            std::string else_str = ep_node->get_prev()->get_prev()->get_module()->univariate_pbs_to_string(changed_value, nullptr, nullptr, false);
+//
+//            if (ep_node->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_Then) {
+//                return "\t" + generate_tfhe_code(value_modification, true) + " * " + then_str + synthesize_code_aux(ep_node->get_prev()->get_prev()->get_prev(), changed_value, nullptr);
+//            } else if (ep_node->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_Else) {
+//                return "\t" + else_str + synthesize_code_aux(ep_node->get_prev()->get_prev()->get_prev(), changed_value, nullptr);
+//            }
+//        }
+//        if (ep_node->get_prev()->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_BivariatePBS) {
+//            std::cout << "Found a Bivariate PBS..." << std::endl;
+//            std::string then_str = ep_node->get_prev()->get_prev()->get_module()->bivariate_pbs_to_string(changed_value, value_modification, nullptr, false);
+//            std::string else_str = ep_node->get_prev()->get_prev()->get_module()->bivariate_pbs_to_string(changed_value, nullptr, value_modification, false);
+//
+//            if (ep_node->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_Then) {
+//                return "\t" + then_str + synthesize_code_aux(ep_node->get_prev()->get_prev()->get_prev(), changed_value, nullptr);
+//            } else if (ep_node->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_Else) {
+//                return "\t" + else_str + synthesize_code_aux(ep_node->get_prev()->get_prev()->get_prev(), changed_value, nullptr);
+//            }
+//        }
+    } else if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_Then) {
+        return " * " + synthesize_code_aux(ep_node->get_prev(), changed_value, nullptr, 1);
+
+    } else if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_Else) {
+        return " * " + synthesize_code_aux(ep_node->get_prev(), changed_value, nullptr, 0);
+
+    } else if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_UnivariatePBS) {
+        std::string str = ep_node->get_module()->univariate_pbs_to_string(changed_value, nullptr, then_arm, false);
+
+        return str + synthesize_code_aux(ep_node->get_prev(), changed_value, nullptr, -1);
+    } else if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_BivariatePBS) {
+        std::string str = ep_node->get_module()->bivariate_pbs_to_string(changed_value, nullptr, nullptr, then_arm, false);
+
+        return str + synthesize_code_aux(ep_node->get_prev(), changed_value, nullptr, -1);
     }
+
+    if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_PacketBorrowNextSecret) {
+        return ";\n";
+    }
+
+//    if (ep_node->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_AidedUnivariatePBS) {
+//        std::cout << "Found an Aided Univariate PBS..." << std::endl;
+//        std::string then_str = ep_node->get_prev()->get_module()->aided_univariate_pbs_to_string(changed_value, true);
+//        std::string else_str = ep_node->get_prev()->get_module()->aided_univariate_pbs_to_string(changed_value, false);
+//
+//        if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_Then) {
+//            return " * " + then_str + synthesize_code_aux(ep_node->get_prev()->get_prev(), changed_value, nullptr);
+//        } else if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_Else) {
+//            return " * " + else_str + synthesize_code_aux(ep_node->get_prev()->get_prev(), changed_value, nullptr);
+//        }
+//    }
+
+    std::cerr << "No return statement on synthesizing code" << std::endl;
 }
 
 std::string synthesize_ep_code(const ExecutionPlan &ep) {
@@ -631,6 +680,10 @@ std::string synthesize_ep_code(const ExecutionPlan &ep) {
             }
 
             code << synthesize_code_aux(ep_node, i, value_mods[i]);
+
+            std::cout << "--------------------------------------------" << std::endl;
+            std::cout << code.str() << std::endl;
+            std::cout << "---------------------------------------------" << std::endl;
         }
 
         packet_return_i += 1;
@@ -657,7 +710,6 @@ void synthesize_code(const ExecutionPlan &ep) {
         std::cerr << "Error opening file for writing!" << std::endl;
         return;  // or handle the error appropriately
     }
-//    std::string code = produce_ep_code(extracted_ep);
     std::string code = synthesize_ep_code(extracted_ep);
     myfile << code;
     myfile.flush();

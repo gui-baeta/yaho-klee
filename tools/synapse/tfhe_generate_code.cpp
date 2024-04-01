@@ -153,16 +153,25 @@ std::string generate_tfhe_code(const klee::ref<klee::Expr>& expr, bool needs_clo
 }
 
 // This function returns the values that the expression depends on (i.e. the indexs of the read)
-std::vector<int> get_dependent_values(const klee::ref<klee::Expr> &expr) {
+std::vector<int> get_dependent_values(const klee::ref<klee::Expr> &expr, const klee::ref<klee::Expr> &parent_expr = nullptr, bool check_if_modified = false) {
     std::vector<int> dependent_values;
     if (expr->getKind() == klee::Expr::Read) {
+        if (check_if_modified) {
+            // When a value is being modified,
+            //  it is wrapped by a Zero Extension or a Sign Extension
+            if (parent_expr->getKind() == klee::Expr::ZExt || parent_expr->getKind() == klee::Expr::SExt) {
+                /* It's modified, get the index... */
+            } else {
+                return dependent_values;
+            }
+        }
         klee::ReadExpr* read_expr = dyn_cast<klee::ReadExpr>(expr);
         klee::ConstantExpr* const_expr = dyn_cast<klee::ConstantExpr>(read_expr->index);
         int index = const_expr->getZExtValue();
         dependent_values.push_back(index);
     } else {
         for (unsigned i = 0; i < expr->getNumKids(); i++) {
-            std::vector<int> dependent_values_kid = get_dependent_values(expr->getKid(i));
+            std::vector<int> dependent_values_kid = get_dependent_values(expr->getKid(i), expr, check_if_modified);
             dependent_values.insert(dependent_values.end(), dependent_values_kid.begin(), dependent_values_kid.end());
         }
     }

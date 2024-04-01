@@ -16,6 +16,7 @@
 // ---
 
 #include "univariate_pbs.h"
+#include "bivariate_pbs.h"
 #include "aided_univariate_pbs.h"
 #include "current_time.h"
 #include "dchain_allocate_new_index.h"
@@ -73,6 +74,7 @@ public:
                    MODULE(TruthTablePBS),
                    MODULE(Conditional),
                    MODULE(UnivariatePBS),
+                   MODULE(BivariatePBS),
                    MODULE(Change),
                    MODULE(NoChange),
                    MODULE(AidedUnivariatePBS),

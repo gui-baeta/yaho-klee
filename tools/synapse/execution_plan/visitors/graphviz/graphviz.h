@@ -258,6 +258,7 @@ public:
   DECLARE_VISIT(targets::tfhe::TruthTablePBS)
   DECLARE_VISIT(targets::tfhe::Conditional)
   DECLARE_VISIT(targets::tfhe::UnivariatePBS)
+  DECLARE_VISIT(targets::tfhe::BivariatePBS)
   DECLARE_VISIT(targets::tfhe::Change)
   DECLARE_VISIT(targets::tfhe::NoChange)
   DECLARE_VISIT(targets::tfhe::AidedUnivariatePBS)

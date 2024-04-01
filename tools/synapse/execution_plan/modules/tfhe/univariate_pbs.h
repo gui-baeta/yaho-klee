@@ -41,12 +41,6 @@ private:
                                 BDD::Node_ptr node) override {
         processing_result_t result;
 
-        const BDD::node_id_t this_node_id = node->get_id();
-
-        // TODO This module expects that the Branch Node has
-        // "packet_return_chunk" as children.
-        //  This should be corrected
-
         // Check if it's a branch node
         const BDD::Branch *branch_node = BDD::cast_node<BDD::Branch>(node);
         if (!branch_node) {
@@ -54,6 +48,18 @@ private:
         }
         // At this point, we know it's a branch
         assert(!branch_node->get_condition().isNull());
+
+        std::cout << "Processing Univariate PBS" << std::endl;
+
+        // If the last-developed node is an incomplete Bivariate PBS, this module can't pick it
+//        auto previous_ep_node = ep.find_node_by_bdd_node_id(node->get_prev()->get_id());
+        ExecutionPlanNode* previous_ep_node = ep.get_last_developed_node_raw();
+        if (previous_ep_node) {
+            if (previous_ep_node->get_module_type() == ModuleType::tfhe_BivariatePBS && !previous_ep_node->get_module()->is_complete()) {
+                return result;
+            }
+        }
+
         klee::ref<klee::Expr> _condition =
             klee::ref<klee::Expr>(branch_node->get_condition());
 
@@ -72,79 +78,69 @@ private:
         // Save the value this condition depends on
         int _value_in_condition = values_in_condition.at(0);
 
-                // Return a branch if both the children are a branch
-        if (branch_node->get_on_true()->get_type() ==
-                BDD::Node::NodeType::BRANCH &&
-            branch_node->get_on_false()->get_type() ==
-                BDD::Node::NodeType::BRANCH) {
+        // Return a branch if both the children are a branch
+//        if (branch_node->get_on_true()->get_type() ==
+//                BDD::Node::NodeType::BRANCH &&
+//            branch_node->get_on_false()->get_type() ==
+//                BDD::Node::NodeType::BRANCH) {
+//
+//            std::cout << "On Univariate PBS: Both children are branches. "
+//                         "Univariate PBS can't be used when both children are branches" << std::endl;
+//
+//            return result;
+//        }
 
-            std::cout << "On Univariate PBS: Both children are branches. "
-                         "Univariate PBS can't be used when both children are branches" << std::endl;
+//        if (branch_node->get_on_true()->get_type() == BDD::Node::NodeType::BRANCH ||
+//            branch_node->get_on_false()->get_type() == BDD::Node::NodeType::BRANCH) {
+//            std::cerr << "On Univariate PBS: One children is a branch and another isn't. Not supported yet" << std::endl;
+//            exit(2);
+//        }
 
-            return result;
-        }
-
-        if (branch_node->get_on_true()->get_type() == BDD::Node::NodeType::BRANCH ||
-            branch_node->get_on_false()->get_type() == BDD::Node::NodeType::BRANCH) {
-            std::cerr << "On Univariate PBS: One children is a branch and another isn't. Not supported yet" << std::endl;
-            exit(2);
-        }
-
-        std::cout << "None of the Children are branches" << std::endl;
+//        std::cout << "None of the Children are branches" << std::endl;
         // We can assume that the children are of the type PacketReturnChunk
 
-        int number_of_values = 0;
-        {
-            // Find the call for the chunks borrow,
-            //  by checking for its function_name in the BDD
-            std::vector<BDD::Node_ptr> prev_borrows = get_prev_fn(
-                ep, node,
-                std::vector<std::string>{BDD::symbex::FN_BORROW_SECRET});
-            // There should be only one borrow!
-            assert(prev_borrows.size() == 1);
-            BDD::Node_ptr borrow_node = prev_borrows.at(0);
-            auto call_node = BDD::cast_node<BDD::Call>(borrow_node);
-            call_t call = call_node->get_call();
-            assert(call.function_name == BDD::symbex::FN_BORROW_SECRET);
-            assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA]
-                        .second.isNull());
-
-            auto _chunk =
-                call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
-            auto chunk_width = _chunk->getWidth();
-            // FIXME This is specific for 1 Byte values
-            //  and will function wrongly if each value is not 1 Byte
-            number_of_values = chunk_width / 8;
-        }
-
-        const BDD::Node_ptr on_true_node = branch_node->get_on_true();
-        const BDD::Node_ptr on_false_node = branch_node->get_on_false();
-
-        // TODO * Expects that the children are of the type PacketReturnChunk
-        std::shared_ptr<Operation> empty_operations_module =
-            std::make_shared<Operation>();
-        std::shared_ptr<Operation> _on_true_module =
-            empty_operations_module->inflate(ep, on_true_node);
-        std::shared_ptr<Operation> _on_false_module =
-            empty_operations_module->inflate(ep, on_false_node);
-
-        typedef klee::ref<klee::Expr> expr_ref;
-
-        // TODO * Expects that the children are of the type PacketReturnChunk
-        std::vector<expr_ref> on_true_modifications =
-            _on_true_module->get_modifications_exprs();
-        std::vector<expr_ref> on_false_modifications =
-            _on_false_module->get_modifications_exprs();
-
-//        ExecutionPlan new_ep = ep.clone();
-//        Module_ptr new_module;
+//        int number_of_values = 0;
+//        {
+//            // Find the call for the chunks borrow,
+//            //  by checking for its function_name in the BDD
+//            std::vector<BDD::Node_ptr> prev_borrows = get_prev_fn(
+//                ep, node,
+//                std::vector<std::string>{BDD::symbex::FN_BORROW_SECRET});
+//            // There should be only one borrow!
+//            assert(prev_borrows.size() == 1);
+//            BDD::Node_ptr borrow_node = prev_borrows.at(0);
+//            auto call_node = BDD::cast_node<BDD::Call>(borrow_node);
+//            call_t call = call_node->get_call();
+//            assert(call.function_name == BDD::symbex::FN_BORROW_SECRET);
+//            assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA]
+//                        .second.isNull());
 //
-//        const int n = new_ep.get_next_value_of_node(this_node_id);
-//        expr_ref on_true_expr = on_true_modifications[n];
-//        expr_ref on_false_expr = on_false_modifications[n];
+//            auto _chunk =
+//                call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+//            auto chunk_width = _chunk->getWidth();
+//            // FIXME This is specific for 1 Byte values
+//            //  and will function wrongly if each value is not 1 Byte
+//            number_of_values = chunk_width / 8;
+//        }
 //
-//        std::cout << "-- Value " << std::to_string(n) << "/"
-//                  << number_of_values - 1 << ":" << std::endl;
+//        const BDD::Node_ptr on_true_node = branch_node->get_on_true();
+//        const BDD::Node_ptr on_false_node = branch_node->get_on_false();
+//
+//        // TODO * Expects that the children are of the type PacketReturnChunk
+//        std::shared_ptr<Operation> empty_operations_module =
+//            std::make_shared<Operation>();
+//        std::shared_ptr<Operation> _on_true_module =
+//            empty_operations_module->inflate(ep, on_true_node);
+//        std::shared_ptr<Operation> _on_false_module =
+//            empty_operations_module->inflate(ep, on_false_node);
+//
+//        typedef klee::ref<klee::Expr> expr_ref;
+//
+//        // TODO * Expects that the children are of the type PacketReturnChunk
+//        std::vector<expr_ref> on_true_modifications =
+//            _on_true_module->get_modifications_exprs();
+//        std::vector<expr_ref> on_false_modifications =
+//            _on_false_module->get_modifications_exprs();
 
 
         auto new_branch_module = std::make_shared<UnivariatePBS>(node, _condition, nullptr, nullptr, -1, _value_in_condition);
@@ -181,86 +177,6 @@ private:
         result.next_eps.push_back(new_ep);
 
         return result;
-
-//        if (on_true_expr.isNull() && on_false_expr.isNull()) {
-//            std::cout << "Both modifications are null" << std::endl;
-//            /* No operations needed since both are null/non-existent,
-//             *
-//             *  We continue to the next pair of values */
-//
-//            int _unchanged_value = n;
-//            std::cout << "///////////////////////////////////////// value: "
-//                      << _unchanged_value << std::endl;
-//            new_module = std::make_shared<NoChange>(node, _unchanged_value);
-//
-//            new_ep = new_ep.add_leaf(new_module, node, false, false);
-//        } else if (kutil::solver_toolbox.are_exprs_always_equal(
-//                       on_true_expr, on_false_expr)) {
-//            /* Creates a Change Module when there is a modification to the
-//             * value but no difference between branches */
-//            std::cout << "Both modifications are equal" << std::endl;
-//            /* Build a Change Module from the modification.
-//             * Since both modifications are the same, we choose one
-//             * arbitrarily */
-//
-//            int _changed_value = n;
-//            std::cout << "///////////////////////////////////////// value: "
-//                      << _changed_value << std::endl;
-//
-//            new_module = std::make_shared<Change>(
-//                node, klee::ref<klee::Expr>(on_true_expr), _changed_value);
-//
-//            /* This node is not marked as terminal or processed since
-//             * there could be other changes in other values */
-//            new_ep = new_ep.add_leaf(new_module, node, false, false);
-//        } else {
-//            /* Creates a new UnivariatePBS Module when there is a difference
-//             * between the same value */
-//
-//            std::cout << "Both modifications are different" << std::endl;
-//
-//            int _changed_value = n;
-//            std::cout << "///////////////////////////////////////// value: "
-//                      << _changed_value << std::endl;
-//
-//            if (_changed_value != _value_in_condition) {
-//                std::cout << "Changed value is different from value in "
-//                             "condition and a MonoBPS cannot be used. Another "
-//                             "Module may be able to process this node."
-//                          << std::endl;
-//                return result;
-//            }
-//
-//            new_module = std::make_shared<UnivariatePBS>(
-//                node, _condition, klee::ref<klee::Expr>(on_true_expr),
-//                klee::ref<klee::Expr>(on_false_expr), _changed_value,
-//                _value_in_condition);
-//
-//            /* Marked as terminal because both children are modifications */
-//            new_ep = new_ep.add_leaf(new_module, node, false, false);
-//        }
-//
-//        /* Sets this node "next_value" as the next value to be taken care of.
-//         *
-//         * This NEEDS to be done before checking if all values are cared for
-//         */
-//        new_ep.mark_value_as_done_for_node(this_node_id);
-//
-//        if (new_ep.all_values_marked_for_node(this_node_id, number_of_values)) {
-//            /* mark the node as processed */
-//            new_ep.add_processed_bdd_node(node->get_id(), number_of_values);
-//        }
-//
-//        // If no new module was created,
-//        // it means no modification was seen for this specific value
-//        if (!new_module) {
-//            return result;
-//        }
-//
-//        result.module = new_module;
-//        result.next_eps.push_back(new_ep);
-//
-//        return result;
     }
 
 public:
@@ -357,8 +273,7 @@ public:
     std::string else_modification_to_string(bool needs_cloning = true) const {
         return generate_tfhe_code(this->else_modification, needs_cloning);
     }
-
-    std::string to_string(int changed_value, klee::ref<klee::Expr> then_operation, klee::ref<klee::Expr> else_operation) const {
+    std::string univariate_pbs_to_string(int changed_value, klee::ref<klee::Expr> operation, bool then_arm, bool terminate = false) const override {
         std::ostringstream s;
 
         std::string value = this->changed_value_to_string(changed_value);
@@ -366,24 +281,35 @@ public:
         // TODO I Could potentially flip this condition if there is no Then
         //  modification
         std::string condition = this->condition_to_string();
-        std::string then_op = generate_tfhe_code(then_operation, false);
-        std::string else_op = generate_tfhe_code(else_operation, false);
+        std::string op = "";
+//        if (operation != nullptr) {
+//            op = generate_tfhe_code(operation, false);
+//
+//            if (then_arm == 1) {
+//                s << "let " << value << " = " << condition_value << ".map(|"
+//                  << condition_value << "| if " << condition << " { " << op
+//                  << " } else { " << value << " }";
+//            } else {
+//                s << "let " << value << " = " << condition_value << ".map(|"
+//                  << condition_value << "| if " << condition << " { " << value
+//                  << " } else { " << op << " }";
+//            }
+//        } else {
+            if (then_arm == 1) {
+                s << condition_value << ".map(|"
+                  << condition_value << "| if " << condition << " { 1 } else { 0 }";
+            } else {
+                s << condition_value << ".map(|"
+                  << condition_value << "| if " << condition << " { 0 } else { 1 }";
+            }
+//        }
 
-        if (!else_op.empty() && !then_op.empty()) {
-            s << "let " << value << " = " << condition_value << ".map(|"
-              << condition_value << "| if " << condition << " { " << then_op
-              << " } else { " << else_op << " }";
-        } else if (then_op.empty()) {
-            s << "let " << value << " = " << condition_value << ".map(|"
-              << condition_value << "| if " << condition << " { " << value
-              << " } else { " << else_op << " }";
-        } else if (else_op.empty()) {
-            s << "let " << value << " = " << condition_value << ".map(|"
-              << condition_value << "| if " << condition << " { " << then_op
-              << " } else { " << value << " }";
+
+        if (terminate) {
+            s << ");" << std::endl;
+        } else {
+            s << ")";
         }
-
-        s << ");" << std::endl;
 
         return s.str();
     }

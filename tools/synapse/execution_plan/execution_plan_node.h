@@ -68,6 +68,13 @@ public:
 
     ExecutionPlanNode_ptr find_node_by_module_type(int type) const;
     ExecutionPlanNode_ptr find_node_by_id(ep_node_id_t id) const;
+    ExecutionPlanNode* find_node_by_ep_node_id(ep_node_id_t id);
+    const ExecutionPlanNode* find_node_by_bdd_node_id(BDD::node_id_t id) const;
+    ExecutionPlanNode* find_node_by_bdd_node_id(BDD::node_id_t id);
+
+    void set_completed();
+    void set_other_condition(klee::ref<klee::Expr> _other_condition);
+
 
     std::string get_module_name() const;
     int get_module_type() const;

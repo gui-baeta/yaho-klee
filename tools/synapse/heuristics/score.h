@@ -26,8 +26,8 @@ public:
     ConsecutiveObjectOperationsInSwitch,
     HasNextStatefulOperationInSwitch,
     ProcessedBDDPercentage,
-    CostOfPBSs,
-    CostOfAidedPBSs,
+    CostOfBivariatePBSs,
+    CostOfUnivariatePBSs,
   };
 
   enum Objective { MIN, MAX };
@@ -69,8 +69,8 @@ public:
          &Score::next_op_is_stateful_in_switch},
         {NumberOfIntAllocatorOps, &Score::get_nr_int_allocator_ops},
         {ProcessedBDDPercentage, &Score::get_percentage_of_processed_bdd},
-        {CostOfPBSs, &Score::get_cost_pbs},
-        {CostOfAidedPBSs, &Score::get_cost_aided_pbs}
+        {CostOfBivariatePBSs, &Score::get_cost_bivariate_pbs},
+        {CostOfUnivariatePBSs, &Score::get_cost_univariate_pbs}
     };
 
     for (const auto &category_objective : categories_objectives) {
@@ -180,8 +180,8 @@ private:
   score_value_t next_op_is_stateful_in_switch(const ExecutionPlan &ep) const;
   score_value_t get_percentage_of_processed_bdd(const ExecutionPlan &ep) const;
 
-  score_value_t get_cost_pbs(const ExecutionPlan &ep) const;
-  score_value_t get_cost_aided_pbs(const ExecutionPlan &ep) const;
+  score_value_t get_cost_bivariate_pbs(const ExecutionPlan &ep) const;
+  score_value_t get_cost_univariate_pbs(const ExecutionPlan &ep) const;
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Score &score) {

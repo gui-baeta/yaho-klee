@@ -164,6 +164,7 @@ class NoOpPacketReturnChunk;
 class TruthTablePBS;
 class Conditional;
 class UnivariatePBS;
+class BivariatePBS;
 class Change;
 class NoChange;
 class AidedUnivariatePBS;
@@ -377,6 +378,7 @@ public:
   VISIT(targets::tfhe::TruthTablePBS)
   VISIT(targets::tfhe::Conditional)
   VISIT(targets::tfhe::UnivariatePBS)
+  VISIT(targets::tfhe::BivariatePBS)
   VISIT(targets::tfhe::Change)
   VISIT(targets::tfhe::NoChange)
   VISIT(targets::tfhe::AidedUnivariatePBS)

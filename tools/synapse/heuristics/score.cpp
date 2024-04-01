@@ -240,18 +240,17 @@ Score::get_percentage_of_processed_bdd(const ExecutionPlan &ep) const {
 }
 
 Score::score_value_t
-Score::get_cost_pbs(const ExecutionPlan &ep) const {
-  auto nodes = get_nodes_with_type(ep, {Module::ModuleType::tfhe_UnivariatePBS});
+Score::get_cost_bivariate_pbs(const ExecutionPlan &ep) const {
+  auto nodes = get_nodes_with_type(ep, {Module::ModuleType::tfhe_BivariatePBS});
   // TODO Add bivariatePBS
   return nodes.size();
 }
 
 
 Score::score_value_t
-Score::get_cost_aided_pbs(const ExecutionPlan &ep) const {
-  auto nodes = get_nodes_with_type(ep, {Module::ModuleType::tfhe_AidedUnivariatePBS});
-  // Multiplied by 2 since one aided univariate PBS is
-  //  twice the cost in time compared to one univariate PBS
+Score::get_cost_univariate_pbs(const ExecutionPlan &ep) const {
+  auto nodes = get_nodes_with_type(ep, {Module::ModuleType::tfhe_UnivariatePBS});
+  // Multiplied by 2 since one bivariate PBS does what two univariate PBS do but for the same price
   return nodes.size() * 2;
 }
 

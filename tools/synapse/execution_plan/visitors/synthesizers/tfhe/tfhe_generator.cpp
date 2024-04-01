@@ -598,6 +598,10 @@ void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
 }
 
 void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
+                          const target::BivariatePBS *node) {
+}
+
+void tfheGenerator::visit(const ExecutionPlanNode *ep_node,
                           const target::Change *node) {
 }
 

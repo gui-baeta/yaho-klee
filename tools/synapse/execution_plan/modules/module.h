@@ -196,6 +196,7 @@ public:
     tfhe_TruthTablePBS,
     tfhe_Conditional,
     tfhe_UnivariatePBS,
+    tfhe_BivariatePBS,
     tfhe_AidedUnivariatePBS,
     tfhe_Change,
     tfhe_NoChange,
@@ -283,6 +284,32 @@ public:
   virtual klee::ref<klee::Expr> get_expr() const {
     return nullptr;
   }
+
+  virtual std::string aided_univariate_pbs_to_string(int changed_value, bool then_arm, bool declaration = false) const {
+    return "";
+  }
+
+  virtual std::string univariate_pbs_to_string(int changed_value, klee::ref<klee::Expr> operation, bool then_arm, bool terminate = false) const {
+    return "";
+  }
+
+  virtual std::string bivariate_pbs_to_string(int changed_value, klee::ref<klee::Expr> operation, klee::ref<klee::Expr> other_operation, bool then_arm, bool terminate = false) const {
+    return "";
+  }
+
+  virtual bool is_complete() const {
+    return true;
+  }
+
+  virtual void set_completed() {
+      return;
+  }
+
+  virtual void set_other_condition(klee::ref<klee::Expr> _other_condition) {
+      return;
+  }
+
+
 
 protected:
   // Shared module functionality

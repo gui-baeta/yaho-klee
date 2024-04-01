@@ -146,6 +146,60 @@ ExecutionPlanNode_ptr ExecutionPlanNode::find_node_by_id(
     return nullptr;
 }
 
+ExecutionPlanNode* ExecutionPlanNode::find_node_by_ep_node_id(ep_node_id_t id) {
+    if (this->id == id) {
+        return this;
+    }
+
+    for (auto &branch : this->next) {
+        auto result = branch->find_node_by_ep_node_id(id);
+        if (result) {
+            return result;
+        }
+    }
+
+    return nullptr;
+}
+
+
+const ExecutionPlanNode* ExecutionPlanNode::find_node_by_bdd_node_id(BDD::node_id_t id) const {
+    if (this->module->get_node()->get_id() == id) {
+        return this;
+    }
+
+    for (auto &branch : this->next) {
+        auto result = branch->find_node_by_bdd_node_id(id);
+        if (result) {
+            return result;
+        }
+    }
+
+    return nullptr;
+}
+
+ExecutionPlanNode* ExecutionPlanNode::find_node_by_bdd_node_id(BDD::node_id_t id) {
+    if (this->module->get_node()->get_id() == id) {
+        return this;
+    }
+
+    for (auto &branch : this->next) {
+        auto result = branch->find_node_by_bdd_node_id(id);
+        if (result) {
+            return result;
+        }
+    }
+
+    return nullptr;
+}
+
+void ExecutionPlanNode::set_completed() {
+    this->module->set_completed();
+}
+
+void ExecutionPlanNode::set_other_condition(klee::ref<klee::Expr> _other_condition) {
+    this->module->set_other_condition(_other_condition);
+}
+
 std::string ExecutionPlanNode::get_module_name() const {
     return this->get_module()->get_name();
 }

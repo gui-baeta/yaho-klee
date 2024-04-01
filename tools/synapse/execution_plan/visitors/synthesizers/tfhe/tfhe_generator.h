@@ -70,6 +70,8 @@ public:
     void visit(const ExecutionPlanNode *ep_node,
                const target::UnivariatePBS *node) override;
     void visit(const ExecutionPlanNode *ep_node,
+           const target::BivariatePBS *node) override;
+    void visit(const ExecutionPlanNode *ep_node,
                const target::Change *node) override;
     void visit(const ExecutionPlanNode *ep_node,
                const target::NoChange *node) override;

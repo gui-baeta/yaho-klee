@@ -327,6 +327,16 @@ ExecutionPlanNode_ptr ExecutionPlan::get_last_developed_node() const {
   return leaf;
 }
 
+ExecutionPlanNode* ExecutionPlan::get_last_developed_node_raw() const {
+  ExecutionPlanNode_ptr leaf;
+
+  if (leaves.size()) {
+    leaf = leaves[0].leaf;
+  }
+
+  return leaf.get();
+}
+
 ExecutionPlanNode_ptr ExecutionPlan::get_active_leaf() const {
   ExecutionPlanNode_ptr leaf;
 
@@ -455,7 +465,7 @@ ExecutionPlan ExecutionPlan::add_leaves(std::vector<leaf_t> _leaves,
       new_ep.meta.nodes_per_target[module->get_target()]++;
     }
 
-    // Set the newly built Module as the next (new) EP node
+    // Set the newly built Modules as the next (new) EP nodes
     new_ep.leaves[0].leaf->set_next(branches);
   }
 
@@ -731,6 +741,18 @@ bool operator==(const ExecutionPlan &lhs, const ExecutionPlan &rhs) {
 
 ExecutionPlanNode_ptr ExecutionPlan::find_node_by_module_type(int type) const {
     return root->find_node_by_module_type(type);
+}
+
+ExecutionPlanNode* ExecutionPlan::find_node_by_ep_node_id(uint64_t id) {
+    return root->find_node_by_ep_node_id(id);
+}
+
+const ExecutionPlanNode* ExecutionPlan::find_node_by_bdd_node_id(BDD::node_id_t id) const {
+    return root->find_node_by_bdd_node_id(id);
+}
+
+ExecutionPlanNode* ExecutionPlan::find_node_by_bdd_node_id(BDD::node_id_t id) {
+    return root->find_node_by_bdd_node_id(id);
 }
 
 std::vector<ExecutionPlanNode_ptr> ExecutionPlan::get_packet_return_chunks_ep_nodes() const {

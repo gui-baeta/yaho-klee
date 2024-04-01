@@ -113,6 +113,7 @@ public:
   /// Returns the node selected for processing.
   ExecutionPlanNode_ptr get_active_leaf() const;
   ExecutionPlanNode_ptr get_last_developed_node() const;
+  ExecutionPlanNode* get_last_developed_node_raw() const;
 
   TargetType get_current_platform() const;
 
@@ -150,6 +151,9 @@ public:
 
 
   ExecutionPlanNode_ptr find_node_by_module_type(int type) const;
+  ExecutionPlanNode* find_node_by_ep_node_id(uint64_t id);
+  const ExecutionPlanNode* find_node_by_bdd_node_id(BDD::node_id_t id) const;
+  ExecutionPlanNode* find_node_by_bdd_node_id(BDD::node_id_t id);
   std::vector<ExecutionPlanNode_ptr> get_packet_return_chunks_ep_nodes() const;
 
 
