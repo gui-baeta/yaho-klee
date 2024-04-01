@@ -6,6 +6,7 @@
 #include "../visitor.h"
 
 #include <vector>
+#include <fstream>
 
 #define DECLARE_VISIT(M)                                                       \
   void visit(const ExecutionPlanNode *ep_node, const M *node) override;

@@ -1,6 +1,8 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/MemoryBuffer.h"
 
+#include <fstream>
+
 #include "call-paths-to-bdd.h"
 
 namespace {
@@ -97,29 +99,15 @@ int main(int argc, char **argv) {
   auto bdd =
       InputBDDFile.size() ? BDD::BDD(InputBDDFile) : BDD::BDD(call_paths);
 
-#ifndef NDEBUG
   std::cerr << "Asserting BDD...\n";
   assert_bdd(bdd);
   std::cerr << "OK!\n";
-#endif
 
   BDD::PrinterDebug printer;
   bdd.visit(printer);
 
-  if (Gv.size()) {
-    auto file = std::ofstream(Gv);
-    assert(file.is_open());
-
-    BDD::GraphvizGenerator graphviz_generator(file);
-    bdd.visit(graphviz_generator);
-  }
-
   if (OutputBDDFile.size()) {
     bdd.serialize(OutputBDDFile);
-  }
-
-  if (Show) {
-    BDD::GraphvizGenerator::visualize(bdd, true);
   }
 
   for (auto call_path : call_paths) {

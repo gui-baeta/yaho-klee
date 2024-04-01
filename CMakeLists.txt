@@ -227,6 +227,9 @@ else()
   unset(ENABLE_KLEE_DEBUG) # for config.h
 endif()
 
+# Build with asserts when targeting release with debug info.
+string(REGEX REPLACE "-DNDEBUG " "" CMAKE_CXX_FLAGS_RELWITHDEBUG "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DDEBUG" )
+
 # Warn about mixing build types.
 # This is likely a bad idea because some of LLVM's header files use the NDEBUG
 # macro which can change things like data layout.
@@ -314,6 +317,12 @@ if ((NOT ${ENABLE_Z3}) AND (NOT ${ENABLE_STP}) AND (NOT ${ENABLE_METASMT}))
     "\"-DENABLE_SOLVER_Z3=ON\"\n"
     "\"-DENABLE_SOLVER_METASMT=ON\"")
 endif()
+
+################################################################################
+# Other dependencies
+################################################################################
+
+include(${CMAKE_SOURCE_DIR}/cmake/find_json.cmake)
 
 ###############################################################################
 # Exception handling

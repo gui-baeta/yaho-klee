@@ -9,9 +9,7 @@
 #include <math.h>
 #include <unistd.h>
 
-#include "../bdd.h"
-#include "../nodes/nodes.h"
-#include "../visitor.h"
+#include "call-paths-to-bdd.h"
 
 namespace BDD {
 
@@ -58,6 +56,7 @@ struct bdd_visualizer_opts_t {
   bool process_only;
   std::unordered_map<node_id_t, std::string> colors_per_node;
   std::pair<bool, std::string> default_color;
+  std::unordered_map<node_id_t, std::string> annotations_per_node;
 
   struct processed_t {
     std::unordered_set<node_id_t> nodes;
@@ -72,11 +71,7 @@ struct bdd_visualizer_opts_t {
 class GraphvizGenerator : public BDDVisitor {
 private:
   std::ostream &os;
-
-  bool show_init_graph;
-  bdd_visualizer_opts_t::processed_t processed;
-  std::unordered_map<node_id_t, std::string> colors_per_node;
-  std::pair<bool, std::string> default_color;
+  bdd_visualizer_opts_t opts;
 
   const char *COLOR_PROCESSED = "gray";
   const char *COLOR_NEXT = "cyan";
@@ -90,32 +85,15 @@ private:
   const char *COLOR_RETURN_PROCESS_BCAST = "purple";
 
 public:
-  GraphvizGenerator(std::ostream &_os, const bdd_visualizer_opts_t &opts)
-      : os(_os) {
-    set_opts(opts);
-  }
+  GraphvizGenerator(std::ostream &_os, const bdd_visualizer_opts_t &_opts)
+      : os(_os), opts(_opts) {}
 
-  GraphvizGenerator(std::ostream &_os)
-      : GraphvizGenerator(_os, bdd_visualizer_opts_t()) {}
+  GraphvizGenerator(std::ostream &_os) : os(_os) {}
 
-  void set_opts(const bdd_visualizer_opts_t &opts) {
-    show_init_graph = !opts.process_only;
-    processed = opts.processed;
-    colors_per_node = opts.colors_per_node;
-    default_color = opts.default_color;
-  }
-
-  void set_processed(const bdd_visualizer_opts_t::processed_t &_processed) {
-    processed = _processed;
-  }
-
-  void set_node_colors(
-      const std::unordered_map<node_id_t, std::string> &_colors_per_node) {
-    colors_per_node = _colors_per_node;
-  }
+  void set_opts(const bdd_visualizer_opts_t &_opts) { opts = _opts; }
 
   bool has_color(node_id_t id) const {
-    return colors_per_node.find(id) != colors_per_node.end();
+    return opts.colors_per_node.find(id) != opts.colors_per_node.end();
   }
 
   std::string get_color(const Node *node) const {
@@ -123,18 +101,18 @@ public:
     auto id = node->get_id();
 
     if (has_color(id)) {
-      return colors_per_node.at(id);
+      return opts.colors_per_node.at(id);
     }
 
-    if (default_color.first) {
-      return default_color.second;
+    if (opts.default_color.first) {
+      return opts.default_color.second;
     }
 
-    if (processed.nodes.find(id) != processed.nodes.end()) {
+    if (opts.processed.nodes.find(id) != opts.processed.nodes.end()) {
       return COLOR_PROCESSED;
     }
 
-    if (processed.next && id == processed.next->get_id()) {
+    if (opts.processed.next && id == opts.processed.next->get_id()) {
       return COLOR_NEXT;
     }
 
@@ -182,10 +160,6 @@ public:
     }
   }
 
-  void set_show_init_graph(bool _show_init_graph) {
-    show_init_graph = _show_init_graph;
-  }
-
   static void visualize(const BDD &bdd, bool interrupt = true,
                         bool process_only = true) {
     bdd_visualizer_opts_t opts;
@@ -224,7 +198,12 @@ public:
       std::string script = "open_graph.sh";
       std::string cmd = dir_path + "/" + script + " " + fpath;
 
-      system(cmd.c_str());
+      auto status = system(cmd.c_str());
+
+      if (status < 0) {
+        std::cout << "Error: " << strerror(errno) << '\n';
+        assert(false && "Failed to open graph.");
+      }
     };
 
     auto random_fname = random_fname_generator();
@@ -254,7 +233,7 @@ public:
     os << "digraph mygraph {\n";
     os << "\tnode [shape=box style=rounded border=0];\n";
 
-    if (show_init_graph) {
+    if (!opts.process_only) {
       assert(bdd.get_init());
       visitInitRoot(bdd.get_init().get());
     }
@@ -291,8 +270,13 @@ public:
     auto constraints = node->get_node_constraints();
     if (constraints.size()) {
       for (auto c : constraints) {
-        os << "\\l{" << kutil::pretty_print_expr(c) << "}";
+        os << "\\n{" << kutil::pretty_print_expr(c) << "}";
       }
+    }
+
+    if (opts.annotations_per_node.find(node->get_id()) !=
+        opts.annotations_per_node.end()) {
+      os << "\\n" << opts.annotations_per_node.at(node->get_id());
     }
 
     os << "\"";
@@ -403,6 +387,11 @@ public:
       }
     }
 
+    if (opts.annotations_per_node.find(node->get_id()) !=
+        opts.annotations_per_node.end()) {
+      os << "\\l" << opts.annotations_per_node.at(node->get_id());
+    }
+
     os << "\"";
 
     os << ", fillcolor=\"" << get_color(node) << "\"";
@@ -443,6 +432,11 @@ public:
     default: {
       assert(false);
     }
+    }
+
+    if (opts.annotations_per_node.find(node->get_id()) !=
+        opts.annotations_per_node.end()) {
+      os << "\\l" << opts.annotations_per_node.at(node->get_id());
     }
 
     os << "\"";
@@ -488,6 +482,11 @@ public:
     }
     }
 
+    if (opts.annotations_per_node.find(node->get_id()) !=
+        opts.annotations_per_node.end()) {
+      os << "\\l" << opts.annotations_per_node.at(node->get_id());
+    }
+
     os << "\"";
     os << ", fillcolor=\"" << get_color(node) << "\"";
     os << "];\n";
@@ -506,7 +505,7 @@ public:
 
   void visitProcessRoot(const Node *root) override {
     os << "\tsubgraph clusterprocess {\n";
-    if (show_init_graph) {
+    if (!opts.process_only) {
       os << "\t\tlabel=\"nf_process\"\n";
     }
     os << "\t\tnode [style=\"rounded,filled\",color=black];\n";

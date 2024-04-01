@@ -1,4 +1,5 @@
 ---
 BasedOnStyle:  LLVM
 Standard: Cpp11
+SortIncludes: false
 ...

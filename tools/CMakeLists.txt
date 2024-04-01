@@ -6,6 +6,17 @@
 # License. See LICENSE.TXT for details.
 #
 # ===------------------------------------------------------------------------===#
+
+################################################################################
+# Tools dependencies
+################################################################################
+
+include(${CMAKE_SOURCE_DIR}/cmake/find_json.cmake)
+
+################################################################################
+# Actual tools
+################################################################################
+
 add_subdirectory(gen-random-bout)
 add_subdirectory(kleaver)
 add_subdirectory(klee)
@@ -19,9 +30,9 @@ add_subdirectory(klee-util)
 add_subdirectory(load-call-paths)
 add_subdirectory(analyze-call-paths)
 add_subdirectory(call-paths-to-bdd)
-add_subdirectory(bdd-to-c)
+add_subdirectory(bdd-emulator)
 add_subdirectory(bdd-reorderer)
+add_subdirectory(bdd-to-c)
+add_subdirectory(bdd-visualizer)
 add_subdirectory(synapse)
 add_subdirectory(packet-modification-detector)
-add_subdirectory(clone)
-add_subdirectory(bdd-emulator)

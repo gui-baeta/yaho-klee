@@ -46,23 +46,22 @@ llvm::cl::opt<std::string>
                        "XML will not be dumped."),
         llvm::cl::cat(SynthesizerCat));
 
-llvm::cl::opt<TargetOption> Target(
-    "target", llvm::cl::desc("Output file's target."),
-    llvm::cl::cat(SynthesizerCat),
-    llvm::cl::values(clEnumValN(SEQUENTIAL, "seq", "Sequential"),
-                     clEnumValN(SHARED_NOTHING, "sn", "Shared-nothing"),
-                     clEnumValN(LOCKS, "locks", "Lock based"),
-                     clEnumValN(TM, "tm", "Transactional memory"),
-                     clEnumValN(BDD_NODE_HIT_RATE, "nhr", "BDD node hit rate"),
-                     clEnumValEnd),
-    llvm::cl::Required);
+llvm::cl::opt<TargetOption>
+    Target("target", llvm::cl::desc("Output file's target."),
+           llvm::cl::cat(SynthesizerCat),
+           llvm::cl::values(clEnumValN(SEQUENTIAL, "seq", "Sequential"),
+                            clEnumValN(SHARED_NOTHING, "sn", "Shared-nothing"),
+                            clEnumValN(LOCKS, "locks", "Lock based"),
+                            clEnumValN(TM, "tm", "Transactional memory"),
+                            clEnumValN(BDD_NODE_HIT_RATE, "bdd-analyzer",
+                                       "BDD node hit rate"),
+                            clEnumValEnd),
+           llvm::cl::Required);
 } // namespace
 
-Node_ptr preppend_bdd_node_hit_rate(AST &ast, Node_ptr node, uint64_t node_id) {
+Node_ptr update_bdd_node_hit_rate(AST &ast, uint64_t node_id) {
   auto bdd_node_hit_counter = ast.get_from_state("bdd_node_hit_counter");
-  if (!bdd_node_hit_counter) {
-    return node;
-  }
+  assert(bdd_node_hit_counter);
 
   auto byte = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT8_T);
   auto idx = Constant::build(PrimitiveType::PrimitiveKind::INT, node_id);
@@ -73,18 +72,11 @@ Node_ptr preppend_bdd_node_hit_rate(AST &ast, Node_ptr node, uint64_t node_id) {
                  Constant::build(PrimitiveType::PrimitiveKind::INT, 1)));
   assignment->set_terminate_line(true);
 
-  if (node->get_kind() == Node::NodeKind::BLOCK) {
-    auto block = static_cast<Block *>(node.get());
-    // block->set_enclose(false);
-    block->preppend(assignment);
-    return node;
-  }
-
-  std::vector<Node_ptr> nodes = {assignment, node};
-  return Block::build(nodes, false);
+  return assignment;
 }
 
-Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target) {
+Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target,
+                   bool processing_packets) {
   std::vector<Node_ptr> nodes;
   assert(root);
 
@@ -96,17 +88,26 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target) {
     case BDD::Node::NodeType::BRANCH: {
       auto branch_node = static_cast<const BDD::Branch *>(root);
 
+      if (processing_packets && processing_packets &&
+          target == BDD_NODE_HIT_RATE) {
+        auto hit_rate_update =
+            update_bdd_node_hit_rate(ast, branch_node->get_id());
+        nodes.push_back(hit_rate_update);
+      }
+
       auto on_true_bdd = branch_node->get_on_true();
       auto on_false_bdd = branch_node->get_on_false();
 
       auto cond = branch_node->get_condition();
 
       ast.push();
-      auto then_node = build_ast(ast, on_true_bdd.get(), target);
+      auto then_node =
+          build_ast(ast, on_true_bdd.get(), target, processing_packets);
       ast.pop();
 
       ast.push();
-      auto else_node = build_ast(ast, on_false_bdd.get(), target);
+      auto else_node =
+          build_ast(ast, on_false_bdd.get(), target, processing_packets);
       ast.pop();
 
       auto cond_node = transpile(&ast, cond, true);
@@ -117,15 +118,8 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target) {
                                ? on_false_bdd->get_terminating_node_ids()
                                : std::vector<uint64_t>();
 
-      if (target == BDD_NODE_HIT_RATE) {
-        then_node =
-            preppend_bdd_node_hit_rate(ast, then_node, on_true_bdd->get_id());
-        else_node =
-            preppend_bdd_node_hit_rate(ast, else_node, on_false_bdd->get_id());
-      }
-
-      Node_ptr branch = Branch::build(cond_node, then_node, else_node,
-                                      on_true_term, on_false_term);
+      Branch_ptr branch = Branch::build(cond_node, then_node, else_node,
+                                        on_true_term, on_false_term);
       nodes.push_back(branch);
 
       root = nullptr;
@@ -134,14 +128,16 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target) {
 
     case BDD::Node::NodeType::CALL: {
       auto bdd_call = static_cast<const BDD::Call *>(root);
+
+      if (processing_packets && target == BDD_NODE_HIT_RATE) {
+        auto hit_rate_update =
+            update_bdd_node_hit_rate(ast, bdd_call->get_id());
+        nodes.push_back(hit_rate_update);
+      }
+
       auto call_node = ast.node_from_call(bdd_call, target);
 
       if (call_node) {
-        if (target == BDD_NODE_HIT_RATE) {
-          call_node =
-              preppend_bdd_node_hit_rate(ast, call_node, bdd_call->get_id());
-        }
-
         nodes.push_back(call_node);
       }
 
@@ -166,9 +162,10 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target) {
 
       Node_ptr ret_node = Return::build(ret_value);
 
-      if (target == BDD_NODE_HIT_RATE) {
-        ret_node =
-            preppend_bdd_node_hit_rate(ast, ret_node, return_init->get_id());
+      if (processing_packets && target == BDD_NODE_HIT_RATE) {
+        auto hit_rate_update =
+            update_bdd_node_hit_rate(ast, return_init->get_id());
+        nodes.push_back(hit_rate_update);
       }
 
       nodes.push_back(ret_node);
@@ -203,9 +200,10 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target) {
       }
       }
 
-      if (target == BDD_NODE_HIT_RATE) {
-        new_node =
-            preppend_bdd_node_hit_rate(ast, new_node, return_process->get_id());
+      if (processing_packets && target == BDD_NODE_HIT_RATE) {
+        auto hit_rate_update =
+            update_bdd_node_hit_rate(ast, return_process->get_id());
+        nodes.push_back(hit_rate_update);
       }
 
       nodes.push_back(new_node);
@@ -234,7 +232,7 @@ void build_ast(AST &ast, const BDD::BDD &bdd, TargetOption target) {
   // The node IDs start from 0
   auto total_processing_nodes = bdd.get_max_node_id() + 1;
 
-  auto init_root = build_ast(ast, bdd.get_init().get(), target);
+  auto init_root = build_ast(ast, bdd.get_init().get(), target, false);
   std::vector<Node_ptr> intro_nodes;
 
   switch (target) {
@@ -376,7 +374,7 @@ void build_ast(AST &ast, const BDD::BDD &bdd, TargetOption target) {
   init_root = Block::build(intro_nodes_init);
   ast.commit(init_root);
 
-  auto process_root = build_ast(ast, bdd.get_process().get(), target);
+  auto process_root = build_ast(ast, bdd.get_process().get(), target, true);
 
   assert(process_root->get_kind() == Node::NodeKind::BLOCK);
   std::vector<Node_ptr> intro_nodes_process = intro_nodes;
@@ -419,27 +417,20 @@ void synthesize(const AST &ast, TargetOption target, std::ostream &out) {
 
   switch (target) {
   case SEQUENTIAL: {
-    boilerplate_path += "sequential.cpp";
+    boilerplate_path += "sequential.template.cpp";
     break;
   }
   case BDD_NODE_HIT_RATE: {
-    boilerplate_path += "bdd-node-hit-rate.cpp";
+    boilerplate_path += "bdd-analyzer.template.cpp";
     break;
   }
   default: {
     assert(false && "No boilerplate for this target");
-    std::cerr << "ERROR: no boilerplate for this target\n";
-    exit(1);
   }
   }
 
   auto boilerplate = std::ifstream(boilerplate_path, std::ios::in);
-  assert(!boilerplate.fail());
-  if (boilerplate.fail()) {
-    std::cerr << "ERRROR: boilerplate code not found: " << boilerplate_path
-              << std::endl;
-    exit(1);
-  }
+  assert(!boilerplate.fail() && "Boilerplate file not found");
 
   out << boilerplate.rdbuf();
   ast.print(out);
@@ -451,7 +442,6 @@ int main(int argc, char **argv) {
   auto bdd = build_bdd();
 
   AST ast;
-
   build_ast(ast, bdd, Target);
 
   if (Out.size()) {

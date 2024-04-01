@@ -32,7 +32,13 @@ extern "C" {
 #include <stdbool.h>
 #include <unistd.h>
 
+#include <fstream>
+#include <nlohmann/json.hpp>
 #include <vector>
+
+using json = nlohmann::json;
+
+#define REPORT_NAME "bdd-analysis"
 
 #define NF_INFO(text, ...)                                                     \
   printf(text "\n", ##__VA_ARGS__);                                            \
@@ -60,6 +66,7 @@ extern "C" {
 #define ARG_TRAFFIC_UNIFORM "uniform"
 #define ARG_TRAFFIC_ZIPF "zipf"
 #define ARG_TRAFFIC_ZIPF_PARAM "zipf-param"
+#define ARG_RANDOM_SEED "seed"
 
 #define DEFAULT_DEVICE 0
 #define DEFAULT_TOTAL_PACKETS 1000000lu
@@ -95,6 +102,7 @@ enum {
   ARG_TRAFFIC_UNIFORM_NUM,
   ARG_TRAFFIC_ZIPF_NUM,
   ARG_TRAFFIC_ZIPF_PARAM_NUM,
+  ARG_RANDOM_SEED_NUM,
 };
 
 bool nf_init(void);
@@ -131,9 +139,9 @@ flow_t generate_random_flow() {
 }
 
 struct pkt_t {
-  uint8_t pkt[MAX_PKT_SIZE];
+  uint8_t data[MAX_PKT_SIZE];
   uint32_t len;
-  uint64_t ts;
+  time_ns_t ts;
 };
 
 struct config_t {
@@ -200,11 +208,7 @@ public:
   }
 
   bool generate(pkt_t &pkt) {
-    if (pcap) {
-      return generate_with_pcap(pkt);
-    }
-
-    return generate_without_pcap(pkt);
+    return pcap ? generate_with_pcap(pkt) : generate_without_pcap(pkt);
   }
 
 private:
@@ -219,7 +223,7 @@ private:
     int success = pcap_next_ex(pcap, &hdr, &pcap_pkt);
     assert(success >= 0 && "Error reading pcap file");
 
-    memcpy(pkt.pkt, pcap_pkt, hdr->len);
+    memcpy(pkt.data, pcap_pkt, hdr->len);
     pkt.len = hdr->len;
     pkt.ts = hdr->ts.tv_sec * 1e9 + hdr->ts.tv_usec * 1e3;
 
@@ -238,11 +242,15 @@ private:
 
     last_time = pkt.ts;
 
-    struct rte_ether_hdr *eth_hdr = (struct rte_ether_hdr *)pkt.pkt;
+    struct rte_ether_hdr *eth_hdr = (struct rte_ether_hdr *)pkt.data;
     struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
     struct rte_udp_hdr *udp_hdr = (struct rte_udp_hdr *)(ip_hdr + 1);
 
-    flow_t flow = get_next_flow();
+    eth_hdr->ether_type = rte_bswap16(RTE_ETHER_TYPE_IPV4);
+    ip_hdr->version_ihl = RTE_IPV4_VHL_DEF;
+    ip_hdr->next_proto_id = IPPROTO_UDP;
+
+    const flow_t &flow = get_next_flow();
     ip_hdr->src_addr = flow.src_ip;
     ip_hdr->dst_addr = flow.dst_ip;
     udp_hdr->src_port = flow.src_port;
@@ -254,7 +262,6 @@ private:
 
   void update_and_show_progress() {
     generated_packets++;
-
     int percentage = 100 * generated_packets / (double)total_packets;
 
     if (percentage == last_percentage_report) {
@@ -264,22 +271,26 @@ private:
     last_percentage_report = percentage;
     printf("\rProcessing packets %lu/%lu (%d%%) ...", generated_packets,
            total_packets, percentage);
+
+    if (generated_packets == total_packets) {
+      printf("\n");
+    }
+
     fflush(stdout);
   }
 
-  flow_t get_next_flow() {
+  const flow_t &get_next_flow() {
     if (config.traffic_uniform) {
-      if (flows.size() != config.total_flows) {
+      if (generated_packets < config.total_flows) {
         flow_t random_flow = generate_random_flow();
         flows.push_back(random_flow);
-        return random_flow;
+        return flows[generated_packets];
       }
 
-      int curr_flow_i = generated_packets % flows.size();
+      int curr_flow_i = generated_packets % config.total_flows;
 
-      if (last_time >= churn_alarm) {
-        flow_t random_flow = generate_random_flow();
-        flows[curr_flow_i] = random_flow;
+      if (churn_alarm_delta > 0 && last_time >= churn_alarm) {
+        flows[curr_flow_i] = generate_random_flow();
         churn_alarm = last_time + churn_alarm_delta;
       }
 
@@ -287,9 +298,30 @@ private:
     }
 
     assert(false && "Zipf traffic not implemented");
-    exit(1);
   }
 };
+
+void nf_log_pkt(time_ns_t time, uint16_t device, uint8_t *packet,
+                uint16_t packet_length) {
+  struct rte_ether_hdr *rte_ether_header = (struct rte_ether_hdr *)(packet);
+  struct rte_ipv4_hdr *rte_ipv4_header =
+      (struct rte_ipv4_hdr *)(packet + sizeof(struct rte_ether_hdr));
+  struct tcpudp_hdr *tcpudp_header =
+      (struct tcpudp_hdr *)(packet + sizeof(struct rte_ether_hdr) +
+                            sizeof(struct rte_ipv4_hdr));
+
+  NF_DEBUG("[%lu:%u] %u.%u.%u.%u:%u -> %u.%u.%u.%u:%u", time, device,
+           (rte_ipv4_header->src_addr >> 0) & 0xff,
+           (rte_ipv4_header->src_addr >> 8) & 0xff,
+           (rte_ipv4_header->src_addr >> 16) & 0xff,
+           (rte_ipv4_header->src_addr >> 24) & 0xff,
+           rte_bswap16(tcpudp_header->src_port),
+           (rte_ipv4_header->dst_addr >> 0) & 0xff,
+           (rte_ipv4_header->dst_addr >> 8) & 0xff,
+           (rte_ipv4_header->dst_addr >> 16) & 0xff,
+           (rte_ipv4_header->dst_addr >> 24) & 0xff,
+           rte_bswap16(tcpudp_header->dst_port));
+}
 
 void nf_config_usage(char **argv) {
   NF_INFO(
@@ -304,6 +336,7 @@ void nf_config_usage(char **argv) {
       "\t [--" ARG_TRAFFIC_UNIFORM " (default=%s)]\n"
       "\t [--" ARG_TRAFFIC_ZIPF " (default=%s)]\n"
       "\t [--" ARG_TRAFFIC_ZIPF_PARAM " <param> (default=%f)]\n"
+      "\t [--" ARG_RANDOM_SEED " <seed> (default set by DPDK)]\n"
       "\t [--" ARG_HELP "]\n"
       "\n"
       "Argument descriptions:\n"
@@ -316,6 +349,7 @@ void nf_config_usage(char **argv) {
       "\t " ARG_TOTAL_CHURN_FPM ": flow churn (fpm)\n"
       "\t " ARG_TOTAL_RATE_PPS ": packet rate (pps)\n"
       "\t " ARG_PACKET_SIZES ": packet sizes (bytes)\n"
+      "\t " ARG_RANDOM_SEED ": random seed\n"
       "\t " ARG_HELP ": show this menu\n",
       argv[0], DEFAULT_DEVICE, DEFAULT_TOTAL_PACKETS, DEFAULT_TOTAL_FLOWS,
       DEFAULT_TOTAL_CHURN_FPM, DEFAULT_TOTAL_RATE_PPS, DEFAULT_PACKET_SIZES,
@@ -325,18 +359,21 @@ void nf_config_usage(char **argv) {
 
 void nf_config_print(void) {
   NF_INFO("----- Config -----");
-  NF_INFO("device:    %u", config.device);
+  NF_INFO("device:     %u", config.device);
   if (config.pcap) {
-    NF_INFO("pcap:      %s", config.pcap);
+    NF_INFO("pcap:       %s", config.pcap);
   } else {
     NF_INFO("#packets:   %lu", config.total_packets);
     NF_INFO("#flows:     %lu", config.total_flows);
     NF_INFO("churn:      %lu fpm", config.churn_fpm);
     NF_INFO("rate:       %lu pps", config.rate_pps);
     NF_INFO("pkt sizes:  %u bytes", config.packet_sizes);
-    NF_INFO("uniform:    %s", DEFAULT_TRAFFIC_UNIFORM ? "true" : "false");
-    NF_INFO("zipf:       %s", DEFAULT_TRAFFIC_ZIPF ? "true" : "false");
-    NF_INFO("zipf param: %f", DEFAULT_TRAFFIC_ZIPF_PARAMETER);
+    if (config.traffic_uniform) {
+      NF_INFO("traffic:    uniform");
+    } else if (config.traffic_zipf) {
+      NF_INFO("traffic:    zipf");
+      NF_INFO("zipf param: %f", config.traffic_zipf_param);
+    }
   }
   NF_INFO("--- ---------- ---");
 }
@@ -367,6 +404,7 @@ void nf_config_init(int argc, char **argv) {
       {ARG_TRAFFIC_ZIPF, no_argument, NULL, ARG_TRAFFIC_ZIPF_NUM},
       {ARG_TRAFFIC_ZIPF_PARAM, required_argument, NULL,
        ARG_TRAFFIC_ZIPF_PARAM_NUM},
+      {ARG_RANDOM_SEED, required_argument, NULL, ARG_RANDOM_SEED_NUM},
       {ARG_HELP, no_argument, NULL, ARG_HELP_NUM},
       {NULL, 0, NULL, 0}};
 
@@ -416,6 +454,10 @@ void nf_config_init(int argc, char **argv) {
     case ARG_TRAFFIC_ZIPF_PARAM_NUM: {
       config.traffic_zipf_param = strtof(optarg, NULL);
     } break;
+    case ARG_RANDOM_SEED_NUM: {
+      uint32_t seed = nf_util_parse_int(optarg, "seed", 10, '\0');
+      rte_srand(seed);
+    } break;
     default:
       PARSE_ERROR(argv, "Unknown option.\n");
     }
@@ -426,16 +468,56 @@ void nf_config_init(int argc, char **argv) {
 
 uint64_t *bdd_node_hit_counter_ptr;
 uint64_t bdd_node_hit_counter_sz;
+time_ns_t elapsed_time;
 
 void generate_report() {
-  NF_INFO("Generating report...")
+  json report;
 
-  FILE *report = fopen("nf-cph.csv", "w");
-  fprintf(report, "#node,hits\n");
-  for (unsigned i = 0; i < bdd_node_hit_counter_sz; i++) {
-    fprintf(report, "%u,%lu\n", i, bdd_node_hit_counter_ptr[i]);
+  report["config"] = json();
+  report["config"]["device"] = config.device;
+  if (config.pcap) {
+    report["config"]["pcap"] = config.pcap;
+  } else {
+    report["config"]["total_packets"] = config.total_packets;
+    report["config"]["total_flows"] = config.total_flows;
+    report["config"]["churn_fpm"] = config.churn_fpm;
+    report["config"]["rate_pps"] = config.rate_pps;
+    report["config"]["packet_sizes"] = config.packet_sizes;
+    report["config"]["traffic_uniform"] = config.traffic_uniform;
+    report["config"]["traffic_zipf"] = config.traffic_zipf;
+    report["config"]["traffic_zipf_param"] = config.traffic_zipf_param;
   }
-  fclose(report);
+
+  report["elapsed"] = elapsed_time;
+
+  report["counters"] = json();
+  for (unsigned i = 0; i < bdd_node_hit_counter_sz; i++) {
+    report["counters"][std::to_string(i)] = bdd_node_hit_counter_ptr[i];
+  }
+
+  std::stringstream report_fname_ss;
+  report_fname_ss << REPORT_NAME;
+  report_fname_ss << "-dev-" << config.device;
+  if (config.pcap) {
+    report_fname_ss << "-pcap-" << config.pcap;
+  } else {
+    report_fname_ss << "-packets-" << config.total_packets;
+    report_fname_ss << "-flows-" << config.total_flows;
+    report_fname_ss << "-churn-" << config.churn_fpm;
+    report_fname_ss << "-rate-" << config.rate_pps;
+    report_fname_ss << "-size-" << config.packet_sizes;
+    if (config.traffic_uniform) {
+      report_fname_ss << "-uniform";
+    } else if (config.traffic_zipf) {
+      report_fname_ss << "-zipf-param-" << config.traffic_zipf_param;
+    }
+  }
+  report_fname_ss << ".json";
+
+  auto report_fname = report_fname_ss.str();
+  std::ofstream(report_fname) << report.dump(2);
+
+  NF_INFO("Generated report %s", report_fname.c_str());
 }
 
 // Main worker method (for now used on a single thread...)
@@ -445,26 +527,28 @@ static void worker_main() {
   }
 
   PacketGenerator pkt_gen(config);
-
-  time_ns_t last_ts = 0;
-  time_ns_t base_ts = 0;
-
   pkt_t pkt;
-  while (pkt_gen.generate(pkt)) {
-    time_ns_t current_time = pkt.ts + base_ts;
 
+  // Generate the first packet manually to record the starting time
+  bool success = pkt_gen.generate(pkt);
+  assert(success && "Failed to generate the first packet");
+
+  time_ns_t start_time = pkt.ts;
+  time_ns_t last_time = 0;
+
+  do {
     // Ignore destination device, we don't forward anywhere
-    nf_process(config.device, pkt.pkt, pkt.len, current_time);
+    nf_process(config.device, pkt.data, pkt.len, pkt.ts);
+    last_time = pkt.ts;
+  } while (pkt_gen.generate(pkt));
 
-    last_ts = current_time;
-  }
-
-  base_ts = last_ts;
-  exit(0);
+  elapsed_time = last_time - start_time;
+  NF_INFO("Elapsed time: %lf s", (double)elapsed_time / 1e9);
 }
 
 int main(int argc, char **argv) {
   nf_config_init(argc, argv);
   worker_main();
+  generate_report();
   return 0;
 }

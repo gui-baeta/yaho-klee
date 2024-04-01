@@ -7,6 +7,8 @@
 #include "../../modules/modules.h"
 #include "../visitor.h"
 
+#include "bdd-visualizer.h"
+
 #include <ctime>
 #include <fstream>
 #include <limits>
@@ -88,11 +90,14 @@ void Graphviz::open() {
     counter++;
   }
 
-#ifndef NDEBUG
   std::cerr << "Opening " << fpath << "\n";
-#endif
 
-  system(cmd.c_str());
+  auto status = system(cmd.c_str());
+
+  if (status < 0) {
+    std::cout << "Error: " << strerror(errno) << '\n';
+    assert(false && "Failed to open graph.");
+  }
 }
 
 void Graphviz::function_call(const ExecutionPlanNode *ep_node,

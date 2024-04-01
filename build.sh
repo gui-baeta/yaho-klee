@@ -3,11 +3,12 @@
 set -euo pipefail
 
 KLEE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BUILD_DIR="$KLEE_DIR/build"
 
-function debug {
-  [ -d "$KLEE_DIR/Debug" ] || mkdir "$KLEE_DIR/Debug"
+build() {
+  [ -d "$BUILD_DIR" ] || mkdir -p "$BUILD_DIR"
 
-  cd "$KLEE_DIR/Debug"
+  cd "$BUILD_DIR"
 
   [ -f "Makefile" ] || CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" \
                      CMAKE_PREFIX_PATH="$KLEE_DIR/../z3/build" \
@@ -22,44 +23,12 @@ function debug {
                          -DENABLE_KLEE_UCLIBC=ON \
                          -DKLEE_UCLIBC_PATH="$KLEE_DIR/../klee-uclibc" \
                          -DENABLE_POSIX_RUNTIME=ON \
-                         -DCMAKE_BUILD_TYPE=Debug \
-                         -DENABLE_KLEE_ASSERTS=ON \
-                         -DENABLE_DOXYGEN=ON \
-                         ..
-
-  make -kj $(nproc) || exit 1
-}
-
-function release {
-  [ -d "$KLEE_DIR/Release" ] || mkdir "$KLEE_DIR/Release"
-
-  cd "$KLEE_DIR/Release"
-
-  [ -f "Makefile" ] || CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 -DNDEBUG" \
-                     CMAKE_PREFIX_PATH="$KLEE_DIR/../z3/build" \
-                     CMAKE_INCLUDE_PATH="$KLEE_DIR/../z3/build/include/" \
-                     cmake \
-                         -DENABLE_UNIT_TESTS=OFF \
-                         -DBUILD_SHARED_LIBS=OFF \
-                         -DENABLE_KLEE_ASSERTS=OFF \
-                         -DLLVM_CONFIG_BINARY="$KLEE_DIR/../llvm/Release/bin/llvm-config" \
-                         -DLLVMCC="$KLEE_DIR/../llvm/Release/bin/clang" \
-                         -DLLVMCXX="$KLEE_DIR/../llvm/Release/bin/clang++" \
-                         -DENABLE_SOLVER_Z3=ON \
-                         -DENABLE_KLEE_UCLIBC=ON \
-                         -DKLEE_UCLIBC_PATH="$KLEE_DIR/../klee-uclibc" \
-                         -DENABLE_POSIX_RUNTIME=ON \
-                         -DCMAKE_BUILD_TYPE=Release \
+                         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
                          -DENABLE_KLEE_ASSERTS=ON \
                          -DENABLE_DOXYGEN=OFF \
-                         ..
+                         $KLEE_DIR
 
   make -kj $(nproc) || exit 1
 }
 
-if [ $# -ge 1 ] && [[ "$1" == "debug" ]]; then
-  debug
-else
-  debug
-  release
-fi
+build

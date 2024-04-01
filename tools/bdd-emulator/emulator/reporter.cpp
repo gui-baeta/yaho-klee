@@ -1,19 +1,7 @@
 #include "reporter.h"
 
-#include "../visualizers/hit-rate.h"
-
 namespace BDD {
 namespace emulation {
-
-void Reporter::render_hit_rate_dot(bool interrupt) const {
-  HitRateGraphvizGenerator::visualize(bdd, meta.get_hit_rate(), interrupt);
-}
-
-void Reporter::dump_hit_rate_dot(std::ostream &os) const {
-  auto hit_rate = meta.get_hit_rate();
-  HitRateGraphvizGenerator dot_generator(os, hit_rate);
-  dot_generator.visit(bdd);
-}
 
 std::string get_human_readable_time_duration(std::chrono::nanoseconds elapsed) {
   std::stringstream ss;
@@ -123,15 +111,6 @@ void Reporter::show(bool force_update) {
 
   if (!force_update) {
     next_report += REPORT_PACKET_PERIOD;
-  }
-}
-
-void Reporter::dump_hit_rate_csv(std::ostream &os) const {
-  auto hit_rate = meta.get_hit_rate();
-
-  os << "# node,hit rate";
-  for (auto it = hit_rate.begin(); it != hit_rate.end(); it++) {
-    os << "\n" << it->first << "," << it->second;
   }
 }
 

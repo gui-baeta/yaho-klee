@@ -7,9 +7,7 @@
 #
 #===------------------------------------------------------------------------===#
 
-file(GLOB_RECURSE check-call-path-compatibility-sources
-  "*.cpp"
-)
+file(GLOB_RECURSE check-call-path-compatibility-sources "*.cpp")
 
 add_executable(check-call-path-compatibility
   ${check-call-path-compatibility-sources}

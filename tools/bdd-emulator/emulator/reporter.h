@@ -51,10 +51,6 @@ public:
     set_thousands_separator();
   }
 
-  void dump_hit_rate_csv(std::ostream &os) const;
-  void dump_hit_rate_dot(std::ostream &os) const;
-  void render_hit_rate_dot(bool interrupt) const;
-
 private:
   void set_num_packets(uint64_t _num_packets) { num_packets = _num_packets; }
 

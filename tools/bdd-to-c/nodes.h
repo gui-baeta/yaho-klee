@@ -342,7 +342,7 @@ public:
   }
 
   static std::shared_ptr<PrimitiveType> build(PrimitiveKind _kind) {
-    PrimitiveType *nt;
+    PrimitiveType *nt = nullptr;
 
     switch (_kind) {
     case VOID:

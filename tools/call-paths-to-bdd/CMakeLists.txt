@@ -6,19 +6,12 @@
 # License. See LICENSE.TXT for details.
 #
 #===------------------------------------------------------------------------===#
-file(GLOB_RECURSE call-paths-to-bdd-sources
-  "*.cpp"
-)
+file(GLOB_RECURSE call-paths-to-bdd-sources "*.cpp")
 
-file(GLOB_RECURSE load-call-paths-sources
-  "../load-call-paths/*.cpp"
-)
-
-file(GLOB_RECURSE klee-util-sources
-  "../klee-util/*.cpp"
-)
-
+file(GLOB_RECURSE load-call-paths-sources "../load-call-paths/*.cpp")
 list(FILTER load-call-paths-sources EXCLUDE REGEX ".*main\\.cpp$")
+
+file(GLOB_RECURSE klee-util-sources "../klee-util/*.cpp")
 list(FILTER klee-util-sources EXCLUDE REGEX ".*main\\.cpp$")
 
 add_executable(call-paths-to-bdd

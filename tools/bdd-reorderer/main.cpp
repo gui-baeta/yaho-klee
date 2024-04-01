@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "bdd-reorderer.h"
+#include "bdd-visualizer.h"
 
 namespace {
 llvm::cl::list<std::string> InputCallPathFiles(llvm::cl::desc("<call paths>"),
