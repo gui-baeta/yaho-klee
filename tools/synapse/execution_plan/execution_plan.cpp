@@ -576,8 +576,8 @@ ExecutionPlan ExecutionPlan::clone(BDD::BDD new_bdd) const {
 }
 
 ExecutionPlan ExecutionPlan::clone(bool deep) const {
-    std::cout << "cloning" << std::endl;
-    std::cout << "current number of the EP:" << std::to_string(this->get_id()) << std::endl;
+//    std::cout << "cloning" << std::endl;
+//    std::cout << "current number of the EP:" << std::to_string(this->get_id()) << std::endl;
   ExecutionPlan copy = *this;
 
   copy.id = counter++;

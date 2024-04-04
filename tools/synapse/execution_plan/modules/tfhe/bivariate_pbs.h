@@ -20,6 +20,10 @@ private:
 
     bool complete = false;
 
+    // This says if this Bivariate PBS node starts from a true or false arm
+    // So: This value represents the first condition's arm of this Bivariate PBS
+    int on_true = -1;
+
     /// The condition depends on this value
     std::pair<int, int> values_in_condition = {0, 0};
 
@@ -27,11 +31,11 @@ public:
     BivariatePBS() : tfheModule(ModuleType::tfhe_BivariatePBS, "BivariatePBS") {}
 
     BivariatePBS(BDD::Node_ptr node, klee::ref<klee::Expr> _condition, klee::ref<klee::Expr> _other_condition,
-            std::pair<int, int> _values_in_condition, bool _complete = false)
+            std::pair<int, int> _values_in_condition, int _on_true, bool _complete = false)
         : tfheModule(ModuleType::tfhe_BivariatePBS, "BivariatePBS", node),
           condition(_condition),
           other_condition(_other_condition),
-          values_in_condition(_values_in_condition), complete(_complete) {}
+          values_in_condition(_values_in_condition), on_true(_on_true), complete(_complete) {}
 
 private:
     processing_result_t process(const ExecutionPlan &ep,
@@ -57,6 +61,7 @@ private:
         if (previous_ep_node) {
             if (previous_ep_node->get_module_type() == ModuleType::tfhe_BivariatePBS &&
                 !previous_ep_node->get_module()->is_complete()) {
+                std::cout << "Trying BivariatePBS: This ep node is an incomplete Bivariate PBS" << std::endl;
 
                 auto new_then_module = std::make_shared<Then>(node);
                 auto new_else_module = std::make_shared<Else>(node);
@@ -95,7 +100,7 @@ private:
         // Bivariate of IFxy
         if (values_in_condition.size() == 2) {
             auto new_branch_module = std::make_shared<BivariatePBS>(node, _condition, nullptr,
-                                                                    std::make_pair(values_in_condition[0], values_in_condition[1]), true);
+                                                                    std::make_pair(values_in_condition[0], values_in_condition[1]), -1, true);
             auto new_then_module = std::make_shared<Then>(node);
             auto new_else_module = std::make_shared<Else>(node);
 
@@ -111,17 +116,8 @@ private:
             std::string parent_condition_name = ep.get_last_developed_node()->get_prev()->get_module_name();
             std::string parent_condition_case = ep.get_last_developed_node()->get_module_name();
 
-            if (ep.get_last_developed_node()->get_module_type() == ModuleType::tfhe_Then ||
-                ep.get_last_developed_node()->get_module_type() == ModuleType::tfhe_Else) {
-
-                klee::ref<klee::Expr> parent_condition = ep.get_last_developed_node()->get_prev()->get_module_condition();
-                std::cout << "Last developed node is a Then/Else" << std::endl;
-    //            _new_ep = std::make_shared<ExecutionPlan>(ep.replace_leaf(new_branch_module, nullptr, true));
-                _new_ep = std::make_shared<ExecutionPlan>(ep.add_leaf(new_branch_module, nullptr, false, true));
-
-            } else {
-                _new_ep = std::make_shared<ExecutionPlan>(ep.add_leaf(new_branch_module, nullptr, false, true));
-            }
+//            _new_ep = std::make_shared<ExecutionPlan>(ep.replace_leaf(new_branch_module, nullptr, true));
+            _new_ep = std::make_shared<ExecutionPlan>(ep.add_leaf(new_branch_module, nullptr, false, true));
 
             ExecutionPlan new_ep = _new_ep->add_leaves(then_else_leaves);
 
@@ -155,10 +151,11 @@ private:
 
                 // True arm
                 auto new_left_module = std::make_shared<BivariatePBS>(node, _condition, nullptr,
-                                                                      std::make_pair(values_in_condition.at(0), on_true_values.at(0)), false);
+                                                                      std::make_pair(values_in_condition.at(0), on_true_values.at(0)), 1, false);
 
+                // False arm
                 auto new_right_module = std::make_shared<BivariatePBS>(node, _condition, nullptr,
-                                                                    std::make_pair(values_in_condition.at(0), on_false_values.at(0)), false);
+                                                                    std::make_pair(values_in_condition.at(0), on_false_values.at(0)), 0, false);
 
                 auto left_leaf =
                     ExecutionPlan::leaf_t(new_left_module, branch_node->get_on_true());
@@ -193,7 +190,7 @@ public:
     virtual Module_ptr clone() const override {
         auto cloned =
             new BivariatePBS(node, this->condition, this->other_condition,
-                        this->values_in_condition, this->complete);
+                        this->values_in_condition, this->complete, this->on_true);
         return std::shared_ptr<Module>(cloned);
     }
 
@@ -283,14 +280,20 @@ public:
         std::string other_op = generate_tfhe_code(other_operation, false);
         // TODO
 
-        if (then_arm == 1) {
-            s << condition_value << ".bivariate_function(&" + other_condition_value + ", |"
-              << condition_value << ", " << other_condition_value << "| if " << condition_str << " && " << other_condition_str << " { 1 } else { 0 }";
-        } else {
-            s << condition_value << ".bivariate_function(&" + other_condition_value + ", |"
-              << condition_value << ", " << other_condition_value << "| if " << condition_str << " && " << other_condition_str
-              << " { 0 } else { 1 }";
+        if (this->on_true == 0) {
+            condition_str = "!(" + condition_str + ")";
         }
+
+        if (then_arm == false) {
+            other_condition_str = "!(" + other_condition_str + ")";
+        }
+
+        s << condition_value << ".bivariate_function(&" + other_condition_value + ", |"
+          << condition_value << ", " << other_condition_value << "| if " <<
+            condition_str <<
+            " && " <<
+            other_condition_str <<
+            " { 1 } else { 0 }";
 
         if (terminate) {
             s << ");" << std::endl;
@@ -320,38 +323,38 @@ public:
         case klee::Expr::Eq:
             operator_str = using_operators ? " == " : ".eq(";
             code =
-                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(condition_expr->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
                 closing_character;
             break;
         // Case for handling unsigned less-than expressions.
         case klee::Expr::Ult:
-            operator_str = using_operators ? " > " : ".ge(";
+            operator_str = using_operators ? " < " : ".lt(";
             code =
-                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(condition_expr->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
                 closing_character;
             break;
 
         // Case for handling unsigned less-than-or-equal-to expressions.
         case klee::Expr::Ule:
-            operator_str = using_operators ? " > " : ".gt(";
+            operator_str = using_operators ? " <= " : ".le(";
             code =
-                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(condition_expr->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
                 closing_character;
             break;
 
         // Case for handling unsigned greater-than expressions.
         case klee::Expr::Ugt:
-            operator_str = using_operators ? " <= " : ".le(";
+            operator_str = using_operators ? " > " : ".gt(";
             code =
-                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(condition_expr->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
                 closing_character;
             break;
 
@@ -359,40 +362,40 @@ public:
         case klee::Expr::Sge:
             // TODO Look at https://www.zama.ai/post/releasing-tfhe-rs-v0-4-0
             //  and see how to use signed comparisons
-            operator_str = using_operators ? " < " : ".lt(";
+            operator_str = using_operators ? " >= " : ".ge(";
             code =
-                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(condition_expr->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
                 closing_character;
             break;
         // Case for handling unsigned greater-than-or-equal-to expressions.
         case klee::Expr::Uge:
-            operator_str = using_operators ? " < " : ".lt(";
+            operator_str = using_operators ? " >= " : ".ge(";
             code =
-                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(condition_expr->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
                 closing_character;
             break;
 
         // Case for handling signed less-than expressions.
         case klee::Expr::Slt:
-            operator_str = using_operators ? " >= " : ".ge(";
+            operator_str = using_operators ? " < " : ".lt(";
             code =
-                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(condition_expr->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
                 closing_character;
             break;
 
         // Case for handling signed less-than-or-equal-to expressions.
         case klee::Expr::Sle:
-            operator_str = using_operators ? " > " : ".gt(";
+            operator_str = using_operators ? " <= " : ".le(";
             code =
-                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(condition_expr->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
                 closing_character;
             break;
         // FIXME Add more cases as needed for other condition types

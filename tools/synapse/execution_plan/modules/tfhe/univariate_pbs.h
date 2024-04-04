@@ -56,6 +56,7 @@ private:
         ExecutionPlanNode* previous_ep_node = ep.get_last_developed_node_raw();
         if (previous_ep_node) {
             if (previous_ep_node->get_module_type() == ModuleType::tfhe_BivariatePBS && !previous_ep_node->get_module()->is_complete()) {
+                std::cout << "Trying UnivariatePBS: This ep node is an incomplete Bivariate PBS" << std::endl;
                 return result;
             }
         }
@@ -78,71 +79,6 @@ private:
         // Save the value this condition depends on
         int _value_in_condition = values_in_condition.at(0);
 
-        // Return a branch if both the children are a branch
-//        if (branch_node->get_on_true()->get_type() ==
-//                BDD::Node::NodeType::BRANCH &&
-//            branch_node->get_on_false()->get_type() ==
-//                BDD::Node::NodeType::BRANCH) {
-//
-//            std::cout << "On Univariate PBS: Both children are branches. "
-//                         "Univariate PBS can't be used when both children are branches" << std::endl;
-//
-//            return result;
-//        }
-
-//        if (branch_node->get_on_true()->get_type() == BDD::Node::NodeType::BRANCH ||
-//            branch_node->get_on_false()->get_type() == BDD::Node::NodeType::BRANCH) {
-//            std::cerr << "On Univariate PBS: One children is a branch and another isn't. Not supported yet" << std::endl;
-//            exit(2);
-//        }
-
-//        std::cout << "None of the Children are branches" << std::endl;
-        // We can assume that the children are of the type PacketReturnChunk
-
-//        int number_of_values = 0;
-//        {
-//            // Find the call for the chunks borrow,
-//            //  by checking for its function_name in the BDD
-//            std::vector<BDD::Node_ptr> prev_borrows = get_prev_fn(
-//                ep, node,
-//                std::vector<std::string>{BDD::symbex::FN_BORROW_SECRET});
-//            // There should be only one borrow!
-//            assert(prev_borrows.size() == 1);
-//            BDD::Node_ptr borrow_node = prev_borrows.at(0);
-//            auto call_node = BDD::cast_node<BDD::Call>(borrow_node);
-//            call_t call = call_node->get_call();
-//            assert(call.function_name == BDD::symbex::FN_BORROW_SECRET);
-//            assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA]
-//                        .second.isNull());
-//
-//            auto _chunk =
-//                call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
-//            auto chunk_width = _chunk->getWidth();
-//            // FIXME This is specific for 1 Byte values
-//            //  and will function wrongly if each value is not 1 Byte
-//            number_of_values = chunk_width / 8;
-//        }
-//
-//        const BDD::Node_ptr on_true_node = branch_node->get_on_true();
-//        const BDD::Node_ptr on_false_node = branch_node->get_on_false();
-//
-//        // TODO * Expects that the children are of the type PacketReturnChunk
-//        std::shared_ptr<Operation> empty_operations_module =
-//            std::make_shared<Operation>();
-//        std::shared_ptr<Operation> _on_true_module =
-//            empty_operations_module->inflate(ep, on_true_node);
-//        std::shared_ptr<Operation> _on_false_module =
-//            empty_operations_module->inflate(ep, on_false_node);
-//
-//        typedef klee::ref<klee::Expr> expr_ref;
-//
-//        // TODO * Expects that the children are of the type PacketReturnChunk
-//        std::vector<expr_ref> on_true_modifications =
-//            _on_true_module->get_modifications_exprs();
-//        std::vector<expr_ref> on_false_modifications =
-//            _on_false_module->get_modifications_exprs();
-
-
         auto new_branch_module = std::make_shared<UnivariatePBS>(node, _condition, nullptr, nullptr, -1, _value_in_condition);
         auto new_then_module = std::make_shared<Then>(node);
         auto new_else_module = std::make_shared<Else>(node);
@@ -159,17 +95,8 @@ private:
         std::string parent_condition_name = ep.get_last_developed_node()->get_prev()->get_module_name();
         std::string parent_condition_case = ep.get_last_developed_node()->get_module_name();
 
-        if (ep.get_last_developed_node()->get_module_type() == ModuleType::tfhe_Then ||
-            ep.get_last_developed_node()->get_module_type() == ModuleType::tfhe_Else) {
-
-            klee::ref<klee::Expr> parent_condition = ep.get_last_developed_node()->get_prev()->get_module_condition();
-            std::cout << "Last developed node is a Then/Else" << std::endl;
-//            _new_ep = std::make_shared<ExecutionPlan>(ep.replace_leaf(new_branch_module, nullptr, true));
-            _new_ep = std::make_shared<ExecutionPlan>(ep.add_leaf(new_branch_module, nullptr, false, true));
-
-        } else {
-            _new_ep = std::make_shared<ExecutionPlan>(ep.add_leaf(new_branch_module, nullptr, false, true));
-        }
+//        _new_ep = std::make_shared<ExecutionPlan>(ep.replace_leaf(new_branch_module, nullptr, true));
+        _new_ep = std::make_shared<ExecutionPlan>(ep.add_leaf(new_branch_module, nullptr, false, true));
 
         ExecutionPlan new_ep = _new_ep->add_leaves(then_else_leaves);
 
@@ -363,38 +290,38 @@ public:
         case klee::Expr::Eq:
             operator_str = using_operators ? " == " : ".eq(";
             code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
                 closing_character;
             break;
         // Case for handling unsigned less-than expressions.
         case klee::Expr::Ult:
-            operator_str = using_operators ? " > " : ".ge(";
+            operator_str = using_operators ? " < " : ".lt(";
             code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
                 closing_character;
             break;
 
         // Case for handling unsigned less-than-or-equal-to expressions.
         case klee::Expr::Ule:
-            operator_str = using_operators ? " > " : ".gt(";
+            operator_str = using_operators ? " <= " : ".le(";
             code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
                 closing_character;
             break;
 
         // Case for handling unsigned greater-than expressions.
         case klee::Expr::Ugt:
-            operator_str = using_operators ? " <= " : ".le(";
+            operator_str = using_operators ? " > " : ".gt(";
             code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
                 closing_character;
             break;
 
@@ -402,40 +329,40 @@ public:
         case klee::Expr::Sge:
             // TODO Look at https://www.zama.ai/post/releasing-tfhe-rs-v0-4-0
             //  and see how to use signed comparisons
-            operator_str = using_operators ? " < " : ".lt(";
+            operator_str = using_operators ? " >= " : ".ge(";
             code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
                 closing_character;
             break;
         // Case for handling unsigned greater-than-or-equal-to expressions.
         case klee::Expr::Uge:
-            operator_str = using_operators ? " < " : ".lt(";
+            operator_str = using_operators ? " >= " : ".ge(";
             code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
                 closing_character;
             break;
 
         // Case for handling signed less-than expressions.
         case klee::Expr::Slt:
-            operator_str = using_operators ? " >= " : ".ge(";
+            operator_str = using_operators ? " lt " : ".lt(";
             code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
                 closing_character;
             break;
 
         // Case for handling signed less-than-or-equal-to expressions.
         case klee::Expr::Sle:
-            operator_str = using_operators ? " > " : ".gt(";
+            operator_str = using_operators ? " <= " : ".le(";
             code =
-                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
-                operator_str +
                 generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
                 closing_character;
             break;
         // FIXME Add more cases as needed for other condition types
