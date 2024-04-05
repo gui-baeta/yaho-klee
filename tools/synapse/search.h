@@ -74,7 +74,7 @@ public:
     }
   }
 
-  template <class T> ExecutionPlan search(Heuristic<T> h, BDD::node_id_t peek) {
+  template <class T> std::vector<ExecutionPlan> search(Heuristic<T> h, BDD::node_id_t peek) {
     auto first_execution_plan = ExecutionPlan(bdd);
 
     for (auto target : targets) {
@@ -129,7 +129,8 @@ public:
     Log::log() << "Solutions:      " << h.get_all().size() << "\n";
     Log::log() << "Winner:         " << h.get_score(h.get()) << "\n";
 
-    return h.get();
+//    return h.get();
+    return h.get_all();
   }
 
   const SearchSpace &get_search_space() const { return search_space; }

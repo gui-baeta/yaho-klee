@@ -108,7 +108,7 @@ BDD::BDD build_bdd() {
     return BDD::BDD(call_paths);
 }
 
-std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
+std::pair<std::vector<ExecutionPlan>, SearchSpace> search(const BDD::BDD &bdd,
                                              BDD::node_id_t peek) {
     SearchEngine search_engine(bdd, MaxReordered);
 
@@ -130,7 +130,7 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
     // auto winner = search_engine.search(dfs, peek);
     // auto winner = search_engine.search(most_compact, peek);
     // auto winner = search_engine.search(maximize_switch_nodes, peek);
-    auto winner = search_engine.search(tfhe_most_abstracted, peek);
+    std::vector<ExecutionPlan> winner = search_engine.search(tfhe_most_abstracted, peek);
     const auto &ss = search_engine.get_search_space();
 
     return {winner, ss};
@@ -694,26 +694,34 @@ std::string synthesize_ep_code(const ExecutionPlan &ep) {
     return code.str();
 }
 
-void synthesize_code(const ExecutionPlan &ep) {
+void synthesize_code(const std::vector<ExecutionPlan> &eps) {
     CodeGenerator code_generator(Out);
 
     std::cout << "Output Directory: " << Out << std::endl;
     // Assuming the only target is TFHE-rs
     assert(TargetList.size() == 1 && TargetList[0] == TargetType::tfhe);
     code_generator.add_target(TargetList[0]);
-    ExecutionPlan extracted_ep = code_generator.extract_at(ep, 0);
 
-    // Create file if not exists and open it with write permission
-    std::ofstream myfile;
-    myfile.open(Out + "main.rs");
-    if (!myfile.is_open()) {
-        std::cerr << "Error opening file for writing!" << std::endl;
-        return;  // or handle the error appropriately
+    std::vector<ExecutionPlan> extracted_eps;
+
+    for (auto& ep : eps) {
+        extracted_eps.push_back(code_generator.extract_at(ep, 0));
     }
-    std::string code = synthesize_ep_code(extracted_ep);
-    myfile << code;
-    myfile.flush();
-    myfile.close();
+
+    for (int i = 0; i < extracted_eps.size(); ++i) {
+        // Create file if not exists and open it with write permission
+        std::ofstream myfile;
+        if (!myfile.is_open()) {
+            std::cerr << "Error opening file for writing!" << std::endl;
+            return;  // or handle the error appropriately
+        }
+        myfile.open(Out + "main_" + std::to_string(i) + ".rs");
+        std::string code = synthesize_ep_code(extracted_eps.at(i));
+        myfile << code;
+        myfile.flush();
+        myfile.close();
+    }
+
 }
 
 void synthesize(const ExecutionPlan &ep) {
