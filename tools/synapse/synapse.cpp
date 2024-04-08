@@ -366,72 +366,23 @@ std::vector<value_conditions_t> preprocess(
 }
 
 std::string tfhe_initial_boiler_plate(){
-    return "use std::io;\n"
-           "use bincode;\n"
-           "\n"
-           "use std::fs::File;\n"
-           "use std::io::{Read, Write};\n"
-           "use std::ops::Add;\n"
-           "\n"
-           "use tfhe::prelude::*;\n"
-           "use tfhe::{\n"
-           "    generate_keys, set_server_key, ClientKey, ConfigBuilder, "
-           "FheUint3, FheUint4, ServerKey,\n"
-           "};\n"
-           "\n"
-           "type FheUint = FheUint3;\n"
-           "\n"
-           "fn main() {\n"
-           "\tlet config = ConfigBuilder::all_disabled().enable_default_uint3().build();\n"
-           "\n\tlet client_key: ClientKey;\n"
-           "\tlet server_key: ServerKey;\n\n"
-           "\t// Check if keys were generated (if files exist)\n"
-           "\tif File::open(\"client.key\").is_ok() && "
-           "\t\tFile::open(\"server.key\").is_ok() {\n"
-           "\t\tprintln!(\"Loading keys...\");\n"
-           "\t\t// Load keys from files\n"
-           "\t\tclient_key = "
-           "\t\tbincode::deserialize(&std::fs::read(\"client.key\").unwrap())."
-           "\t\tunwrap();\n"
-           "\t\tserver_key = "
-           "\t\tbincode::deserialize(&std::fs::read(\"server.key\").unwrap()).unwrap();\n"
-           "\t} else {\n"
-           "\t\tprintln!(\"Generating keys...\");\n"
-           "\t\n"
-           "\t(client_key, server_key) = generate_keys(config);\n"
-           "\t\n"
-           "\t// Save keys to files\n"
-           "\tFile::create(\"client.key\")\n"
-           "\t    .unwrap()\n"
-           "\t    "
-           "\t.write_all(bincode::serialize(&client_key).unwrap().as_slice())\n"
-           "\t    .unwrap();\n"
-           "\t\n"
-           "\tFile::create(\"server.key\")\n"
-           "\t    .unwrap()\n"
-           "\t    "
-           "\t.write_all(bincode::serialize(&server_key).unwrap().as_slice())\n"
-           "\t        .unwrap();\n"
-           "\t}\n"
-           "\tprintln!(\"Done.\");\n"
-           "\t\n"
-           "\t// Create a new mutable String to store the user input\n"
-           "\tlet mut input = String::new();\n"
-           "\t\n"
-           "\t// Print a message to prompt the user for input\n"
-           "\tprintln!(\"Please enter three integers separated by spaces:\");\n"
-           "\t\n"
-           "\t// Read the user input from stdin\n"
-           "\tio::stdin().read_line(&mut input)\n"
-           "\t    .expect(\"Failed to read line\");\n"
-           "\t\n"
-           "\t// Split the input by whitespaces and collect them into a vector of strings\n"
-           "\tlet values: Vec<i32> = input.trim()\n"
-           "\t    .split_whitespace()\n"
-           "\t    .map(|s| s.parse().unwrap()) // Parse each value into an integer\n"
-           "\t    .collect();\n"
-           "\t\n"
-           "\tset_server_key(server_key);\n";
+    // Open the file for reading
+    std::ifstream file("tfhe_initial_boiler_plate.rs");
+
+    // Check if the file was opened successfully
+    if (!file.is_open()) {
+        std::cerr << "Unable to open file\n";
+        exit(2);
+    }
+
+    // Read the entire content of the file into a string
+    std::string content((std::istreambuf_iterator<char>(file)),
+                        (std::istreambuf_iterator<char>()));
+
+    // Close the file
+    file.close();
+
+    return content;
 }
 
 std::string tfhe_end_boiler_plate(int number_of_values){
@@ -711,11 +662,11 @@ void synthesize_code(const std::vector<ExecutionPlan> &eps) {
     for (int i = 0; i < extracted_eps.size(); ++i) {
         // Create file if not exists and open it with write permission
         std::ofstream myfile;
+        myfile.open(Out + "main_" + std::to_string(i) + ".rs");
         if (!myfile.is_open()) {
             std::cerr << "Error opening file for writing!" << std::endl;
             return;  // or handle the error appropriately
         }
-        myfile.open(Out + "main_" + std::to_string(i) + ".rs");
         std::string code = synthesize_ep_code(extracted_eps.at(i));
         myfile << code;
         myfile.flush();
@@ -755,7 +706,9 @@ int main(int argc, char **argv) {
                          .count();
 
     if (ShowEP) {
-        Graphviz::visualize(search_results.first);
+        for (auto& ep : search_results.first) {
+            Graphviz::visualize(ep);
+        }
     }
 
     if (ShowSS) {

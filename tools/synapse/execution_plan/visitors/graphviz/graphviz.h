@@ -75,6 +75,7 @@ private:
 
 public:
   static void visualize(const ExecutionPlan &ep, bool interrupt = true);
+  static void visualize(const ExecutionPlan &ep, bool interrupt, std::string filename);
   static void visualize(const SearchSpace &search_space, bool interrupt = true);
 
   ~Graphviz() { ofs.close(); }

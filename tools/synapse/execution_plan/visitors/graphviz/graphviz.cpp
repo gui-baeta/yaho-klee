@@ -274,6 +274,19 @@ void Graphviz::visualize(const ExecutionPlan &ep, bool interrupt) {
   }
 }
 
+void Graphviz::visualize(const ExecutionPlan &ep, bool interrupt, std::string filename) {
+  if (ep.get_root()) {
+    Graphviz gv;
+    ep.visit(gv);
+    gv.open();
+
+    if (interrupt) {
+      std::cout << "Press Enter to continue ";
+      std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    }
+  }
+}
+
 void Graphviz::visualize(const SearchSpace &search_space, bool interrupt) {
   Graphviz gv;
   gv.visit(search_space);
