@@ -11,7 +11,7 @@ ExecutionPlanNode::ExecutionPlanNode(Module_ptr _module)
     : id(counter++), module(_module) {}
 
 ExecutionPlanNode::ExecutionPlanNode(const ExecutionPlanNode *ep_node)
-    : id(counter++), module(ep_node->module) {}
+    : id(counter++), module(ep_node->module), cond_id(ep_node->cond_id) {}
 
 void ExecutionPlanNode::set_next(Branches _next) { next = _next; }
 void ExecutionPlanNode::set_next(ExecutionPlanNode_ptr _next) {
@@ -79,10 +79,12 @@ ExecutionPlanNode_ptr ExecutionPlanNode::clone(bool recursive) const {
     // The constructor increments the ID, let's fix that
     cloned_node->set_id(id);
 
+    cloned_node->cond_id = this->cond_id;
+
     if (recursive) {
         auto next_clones = Branches();
 
-        for (auto n : next) {
+        for (auto n : this->next) {
             auto cloned_next = n->clone(true);
             next_clones.push_back(cloned_next);
         }

@@ -74,7 +74,9 @@ private:
         std::cout << "-----------------------------------------" << std::endl;
 
         // Check if this condition depends on only one value
-        assert(values_in_condition.size() == 1);
+        if (values_in_condition.size() != 1) {
+            return result;
+        }
 
         // Save the value this condition depends on
         int _value_in_condition = values_in_condition.at(0);
@@ -118,6 +120,21 @@ public:
                         this->else_modification, this->changed_value,
                         this->value_in_condition);
         return std::shared_ptr<Module>(cloned);
+    }
+
+    virtual bool conds_equals(const Module *other) const override {
+        if (other->get_type() != this->type) {
+            return false;
+        }
+
+        auto other_cast = static_cast<const UnivariatePBS *>(other);
+
+        if (!kutil::solver_toolbox.are_exprs_always_equal(
+                this->condition, other_cast->get_condition())) {
+            return false;
+        }
+
+        return true;
     }
 
     virtual bool equals(const Module *other) const override {
@@ -222,7 +239,7 @@ public:
 //                  << " } else { " << op << " }";
 //            }
 //        } else {
-            if (then_arm == 1) {
+            if (then_arm == true) {
                 s << condition_value << ".map(|"
                   << condition_value << "| if " << condition << " { 1 } else { 0 }";
             } else {
@@ -284,11 +301,24 @@ public:
         std::string closing_character = using_operators ? "" : ")";
         std::string operator_str = "";
 
+        std::string str;
+        llvm::raw_string_ostream os(str);
+
+        condition->printKind(os, conditionType);
+
         // Generate the corresponding Rust code based on the condition
         switch (conditionType) {
         // Case for handling equality expressions.
         case klee::Expr::Eq:
             operator_str = using_operators ? " == " : ".eq(";
+            code =
+                generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(this->condition->getKid(1), needs_cloning) +
+                closing_character;
+            break;
+        case klee::Expr::Ne:
+            operator_str = using_operators ? " != " : ".ne(";
             code =
                 generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
                 operator_str +
@@ -348,7 +378,7 @@ public:
 
         // Case for handling signed less-than expressions.
         case klee::Expr::Slt:
-            operator_str = using_operators ? " lt " : ".lt(";
+            operator_str = using_operators ? " < " : ".lt(";
             code =
                 generate_tfhe_code(this->condition->getKid(0), needs_cloning) +
                 operator_str +
@@ -367,12 +397,28 @@ public:
             break;
         // FIXME Add more cases as needed for other condition types
         default:
-            std::cerr << "Unsupported condition type: " << conditionType
+            std::cerr << "Unsupported condition type: " << conditionType << " - " << os.str()
                       << std::endl;
             exit(1);
         }
 
         return code;
+    }
+
+    std::string to_string_debug(bool then_arm, bool with_borrow, int level) const override {
+        std::string str;
+        llvm::raw_string_ostream s(str);
+//        s << "UnivariatePBS(" << this->condition_to_string() << ", "
+//          << this->then_modification_to_string() << ", "
+//          << this->else_modification_to_string() << ", "
+//          << this->changed_value_to_string() << ", "
+//          << this->value_in_condition_to_string() << ")";
+        if (with_borrow) {
+            s << "&c" + std::to_string(level) + "_" + std::to_string(int(then_arm));
+        } else {
+            s << "c" + std::to_string(level) + "_" + std::to_string(int(then_arm));
+        }
+        return s.str();
     }
 
     std::string to_string_debug() const {

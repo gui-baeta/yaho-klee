@@ -33,6 +33,8 @@ private:
     ExecutionPlanNode(const ExecutionPlanNode *ep_node);
 
 public:
+    int cond_id = -1;
+
     void set_next(Branches _next);
     void set_next(ExecutionPlanNode_ptr _next);
     void set_prev(ExecutionPlanNode_ptr _prev);

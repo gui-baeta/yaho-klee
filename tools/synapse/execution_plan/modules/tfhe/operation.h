@@ -317,11 +317,21 @@ public:
         // value
         // FIXME Does this work?
         if (this->get_modifications().empty()) {
+            std::cout << "No modifications found" << std::endl;
             return modifications_per_value;
         }
 
         klee::ref<klee::Expr> first_bit_modifications_expr =
             this->get_modifications()[0].expr;
+
+        if (first_bit_modifications_expr->getKind() == klee::Expr::Kind::Extract
+            && first_bit_modifications_expr->getKid(0)->getKind() == klee::Expr::Kind::Concat
+            && first_bit_modifications_expr->getKid(0)->getKid(0)->getKind() == klee::Expr::Kind::Constant) {
+            modifications_per_value[n_values - 1] = first_bit_modifications_expr->getKid(0)->getKid(0);
+            return modifications_per_value;
+        }
+
+
 
         // Collect all modification expressions
         std::vector<klee::ref<klee::Expr>> all_modifications;

@@ -446,11 +446,19 @@ ExecutionPlan ExecutionPlan::add_leaves(std::vector<leaf_t> _leaves,
     assert(_leaves.size() == 1);
     new_ep.root = _leaves[0].leaf;
 
+//    new_ep.root->level = 0;
+
     auto module = _leaves[0].leaf->get_module();
     new_ep.meta.nodes_per_target[module->get_target()]++;
   } else {
     assert(new_ep.root);
     assert(new_ep.leaves.size());
+
+//    if (new_ep.root->get_next().empty()) {
+//        new_ep.leaves[0].leaf->level = new_ep.root->level + 1;
+//    } else {
+//        new_ep.leaves[0].leaf->level = new_ep.leaves[0].leaf->get_prev()->level + 1;
+//    }
 
     Branches branches;
 
@@ -778,6 +786,52 @@ std::vector<ExecutionPlanNode_ptr> ExecutionPlan::get_packet_return_chunks_ep_no
     }
 
     return packet_return_ep_nodes;
+}
+
+std::vector<ExecutionPlanNode_ptr> ExecutionPlan::get_all_different_conditions() {
+    // I want to save to a vector all the ExecutioPlanNodes that have the module UnivariatePBS or BivariatePBS. This vector should not have any duplicates. This could be done by checking the ep_node_id_t of the ExecutionPlanNode.
+    // Define a stack for DFS traversal
+    std::queue<ExecutionPlanNode_ptr> queue;
+    queue.push(this->root);
+
+    std::vector<ExecutionPlanNode_ptr> different_conditions;
+
+    int cond_id = 0;
+
+    while (!queue.empty()) {
+        ExecutionPlanNode_ptr current = queue.front();
+        queue.pop();
+
+        // Check if the current node is a condition module.
+        // If so, and if it's not a duplicate, add it to the list.
+        if (current->get_module_type() == synapse::Module::ModuleType::tfhe_UnivariatePBS || current->get_module_type() == synapse::Module::ModuleType::tfhe_BivariatePBS) {
+            bool found = false;
+            current->cond_id = cond_id;
+            for (auto& node: different_conditions) {
+                if (node->get_module()->conds_equals(current->get_module().get())) {
+                    current->cond_id = node->cond_id;
+                    found = true;
+                    if (current->get_module()->get_on_true() != node->get_module()->get_on_true()) {
+                        current->cond_id = cond_id;
+                        different_conditions.push_back(current);
+                    }
+
+                    break;
+                }
+            }
+            if (!found) {
+                different_conditions.push_back(current);
+            }
+            cond_id += 1;
+        }
+
+        // Get this ExecutionPlan node's children
+        for (auto node: current->get_next()) {
+            queue.push(node);
+        }
+    }
+
+    return different_conditions;
 }
 
 } // namespace synapse

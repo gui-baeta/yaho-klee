@@ -297,6 +297,19 @@ public:
     return "";
   }
 
+  virtual std::string to_string_debug(bool then_arm, bool with_borrow, int level) const {
+    return "";
+  }
+
+  virtual bool conds_equals(const Module *other) const {
+    return false;
+  }
+
+  virtual int get_on_true() const {
+    return -1;
+  }
+
+
   virtual bool is_complete() const {
     return true;
   }

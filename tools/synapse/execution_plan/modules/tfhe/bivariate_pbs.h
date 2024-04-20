@@ -194,6 +194,36 @@ public:
         return std::shared_ptr<Module>(cloned);
     }
 
+    virtual bool conds_equals(const Module *other) const override {
+        if (other->get_type() != this->type) {
+            return false;
+        }
+
+        auto other_cast = static_cast<const BivariatePBS *>(other);
+
+        if (this->other_condition.isNull() && other_cast->get_other_condition().isNull()) {
+            if (kutil::solver_toolbox.
+                are_exprs_always_equal(this->condition, other_cast->get_condition())) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        if (!(kutil::solver_toolbox.are_exprs_always_equal(
+                  this->condition, other_cast->get_condition()) &&
+              kutil::solver_toolbox.are_exprs_always_equal(
+                  this->other_condition, other_cast->get_other_condition()))) {
+            return false;
+        }
+
+        if (this->on_true != other_cast->get_on_true()) {
+            return false;
+        }
+
+        return true;
+    }
+
     virtual bool equals(const Module *other) const override {
         if (other->get_type() != this->type) {
             return false;
@@ -205,6 +235,10 @@ public:
                   this->condition, other_cast->get_condition()) &&
               kutil::solver_toolbox.are_exprs_always_equal(
                   this->other_condition, other_cast->get_other_condition()))) {
+            return false;
+        }
+
+        if (this->on_true != other_cast->get_on_true()) {
             return false;
         }
 
@@ -224,6 +258,8 @@ public:
     }
 
     bool is_complete() const override { return this->complete; }
+
+    int get_on_true() const override { return this->on_true; }
 
     void set_completed() override { this->complete = true; }
     void set_other_condition(klee::ref<klee::Expr> _other_condition) override { this->other_condition = _other_condition; }
@@ -274,26 +310,34 @@ public:
         std::string other_condition_value = this->value_in_condition_to_string(1);
 
         std::string condition_str = this->condition_to_string();
-        std::string other_condition_str = this->other_condition_to_string();
-
-        std::string op = generate_tfhe_code(operation, false);
-        std::string other_op = generate_tfhe_code(other_operation, false);
-        // TODO
+        std::string other_condition_str = "";
+        if (!other_condition.isNull()) {
+            other_condition_str = this->other_condition_to_string();
+        } else {
+            other_condition_str = "";
+        }
 
         if (this->on_true == 0) {
             condition_str = "!(" + condition_str + ")";
         }
 
-        if (then_arm == false) {
-            other_condition_str = "!(" + other_condition_str + ")";
+        s << condition_value << ".bivariate_function(&" + other_condition_value + ", |"
+          << condition_value << ", " << other_condition_value << "| if " << condition_str;
+        if (!other_condition_str.empty()) {
+            if (then_arm) {
+                s << " && " << other_condition_str;
+            } else {
+                s << " && !(" << other_condition_str << ")";
+            }
+            s << " { 1 } else { 0 }";
+        } else {
+            if (then_arm == true) {
+                s << " { 1 } else { 0 }";
+            } else {
+                s << " { 0 } else { 1 }";
+            }
         }
 
-        s << condition_value << ".bivariate_function(&" + other_condition_value + ", |"
-          << condition_value << ", " << other_condition_value << "| if " <<
-            condition_str <<
-            " && " <<
-            other_condition_str <<
-            " { 1 } else { 0 }";
 
         if (terminate) {
             s << ");" << std::endl;
@@ -317,11 +361,24 @@ public:
         std::string closing_character = using_operators ? "" : ")";
         std::string operator_str = "";
 
+        std::string str;
+        llvm::raw_string_ostream os(str);
+
+        condition_expr->printKind(os, conditionType);
+
         // Generate the corresponding Rust code based on the condition
         switch (conditionType) {
         // Case for handling equality expressions.
         case klee::Expr::Eq:
             operator_str = using_operators ? " == " : ".eq(";
+            code =
+                generate_tfhe_code(condition_expr->getKid(0), needs_cloning) +
+                operator_str +
+                generate_tfhe_code(condition_expr->getKid(1), needs_cloning) +
+                closing_character;
+            break;
+        case klee::Expr::Ne:
+            operator_str = using_operators ? " != " : ".ne(";
             code =
                 generate_tfhe_code(condition_expr->getKid(0), needs_cloning) +
                 operator_str +
@@ -400,7 +457,7 @@ public:
             break;
         // FIXME Add more cases as needed for other condition types
         default:
-            std::cerr << "Unsupported condition type: " << conditionType
+            std::cerr << "Unsupported condition type: " << conditionType << " - " << os.str()
                       << std::endl;
             exit(1);
         }
@@ -408,11 +465,25 @@ public:
         return code;
     }
 
+    std::string to_string_debug(bool then_arm, bool with_borrow, int level) const override {
+        std::string str;
+        llvm::raw_string_ostream s(str);
+//        s << "BivariatePBS(" << this->condition_to_string() << ", "
+//          << this->value_in_condition_to_string() << ")" << this->is_complete_to_string();
+        if (with_borrow) {
+            s << "&c" + std::to_string(level) + "_" + std::to_string(int(then_arm));
+        } else {
+            s << "c" + std::to_string(level) + "_" + std::to_string(int(then_arm));
+        }
+        return s.str();
+    }
+
     std::string to_string_debug() const {
         std::string str;
         llvm::raw_string_ostream s(str);
         s << "BivariatePBS(" << this->condition_to_string() << ", "
           << this->value_in_condition_to_string() << ")" << this->is_complete_to_string();
+//        s << "c" + std::to_string(node->get_id()) + "_" + std::to_string(int(then_arm));
         return s.str();
     }
 

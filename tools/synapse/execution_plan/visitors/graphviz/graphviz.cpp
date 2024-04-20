@@ -276,7 +276,7 @@ void Graphviz::visualize(const ExecutionPlan &ep, bool interrupt) {
 
 void Graphviz::visualize(const ExecutionPlan &ep, bool interrupt, std::string filename) {
   if (ep.get_root()) {
-    Graphviz gv;
+    Graphviz gv(filename);
     ep.visit(gv);
     gv.open();
 

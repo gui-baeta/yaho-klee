@@ -156,6 +156,8 @@ public:
   ExecutionPlanNode* find_node_by_bdd_node_id(BDD::node_id_t id);
   std::vector<ExecutionPlanNode_ptr> get_packet_return_chunks_ep_nodes() const;
 
+  std::vector<ExecutionPlanNode_ptr> get_all_different_conditions();
+
 
 
 private:

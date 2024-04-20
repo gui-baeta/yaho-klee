@@ -136,125 +136,125 @@ std::pair<std::vector<ExecutionPlan>, SearchSpace> search(const BDD::BDD &bdd,
     return {winner, ss};
 }
 
-struct gen_data_t {
-    int chunk_values_amount;
-    std::vector<ep_node_id_t> visited_ep_nodes;
-    std::vector<std::string> conditions;
-};
+//struct gen_data_t {
+//    int chunk_values_amount;
+//    std::vector<ep_node_id_t> visited_ep_nodes;
+//    std::vector<std::string> conditions;
+//};
 
-std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
-                                gen_data_t &gen_data) {
-    std::string code("");
-
-    std::cout << "Module Type: " << ep_node->get_module()->get_name()
-              << std::endl;
-
-    // If the node has already been visited, return
-    if (std::find(gen_data.visited_ep_nodes.begin(),
-                  gen_data.visited_ep_nodes.end(),
-                  ep_node->get_id()) != gen_data.visited_ep_nodes.end()) {
-        return code;
-    }
-
-    if (ep_node->get_module()->get_type() ==
-        synapse::Module::ModuleType::tfhe_CurrentTime) {
-        // Do nothing
-        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
-        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
-
-    } else if (ep_node->get_module()->get_type() ==
-               synapse::Module::ModuleType::tfhe_Conditional) {
-        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
-        auto conditional_module =
-            std::static_pointer_cast<synapse::targets::tfhe::Conditional>(
-                ep_node->get_module());
-
-        size_t this_cond_val_num = gen_data.conditions.size();
-        bool first_conditional_in_conditional_nesting = this_cond_val_num == 0;
-
-        gen_data.conditions.push_back(
-            std::string("let cond_val") +
-            std::to_string(gen_data.conditions.size()) + std::string(" = ") +
-            conditional_module->generate_code() + std::string("\n"));
-
-        // FIXME This code is hardcoded for flattened if-else statements
-        // FIXME I don't like this solution, but for now it will do
-        //  Better solution -> See if this node is a child of a Else or Then
-        //  node?
-        if (first_conditional_in_conditional_nesting) {
-            code += std::string("let result = cond_val");
-            //            for (int n_value = gen_data.chunk_values_amount - 1;
-            //            n_value >= 0;
-            //                 --n_value) {
-            //                code += std::string("val") +
-            //                std::to_string(n_value); if (n_value > 0) {
-            //                    code += std::string(", ");
-            //                }
-            //            }
-            //            code += std::string(" = ");
-        } else {
-            code += std::string("&cond_val");
-        }
-        code += std::to_string(this_cond_val_num) + std::string(".mul_distr(") +
-                synthesize_code_aux(ep_node->get_next()[0], gen_data) +
-                std::string(").add(cond_val") +
-                std::to_string(this_cond_val_num) +
-                std::string(".map(not).mul_distr(") +
-                synthesize_code_aux(ep_node->get_next()[1], gen_data) +
-                std::string("))\n");
-
-    } else if (ep_node->get_module()->get_type() ==
-               synapse::Module::ModuleType::tfhe_Then) {
-        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
-        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
-
-    } else if (ep_node->get_module()->get_type() ==
-               synapse::Module::ModuleType::tfhe_Else) {
-        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
-        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
-
-    } else if (ep_node->get_module()->get_type() ==
-               synapse::Module::ModuleType::tfhe_Operation) {
-        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
-        auto operation_module =
-            std::static_pointer_cast<synapse::targets::tfhe::Operation>(
-                ep_node->get_module());
-        code += operation_module->generate_code();
-
-    } else if (ep_node->get_module()->get_type() ==
-               synapse::Module::tfhe_PacketBorrowNextChunk) {
-        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
-        auto packet_borrow_next_chunk_module = std::static_pointer_cast<
-            synapse::targets::tfhe::PacketBorrowNextChunk>(
-            ep_node->get_module());
-        //        code += packet_borrow_next_chunk_module->generate_code();
-        gen_data.chunk_values_amount =
-            packet_borrow_next_chunk_module->get_chunk_values_amount();
-
-        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
-
-    } else if (ep_node->get_module()->get_type() ==
-               synapse::Module::tfhe_PacketBorrowNextSecret) {
-        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
-        auto packet_borrow_next_secret_module = std::static_pointer_cast<
-            synapse::targets::tfhe::PacketBorrowNextSecret>(
-            ep_node->get_module());
-        //        code += packet_borrow_next_secret_module->generate_code();
-        gen_data.chunk_values_amount =
-            packet_borrow_next_secret_module->get_chunk_values_amount();
-
-        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
-    }
-
-    // FIXME This is probably too generic and I want to control each node that
-    //  is to be processed
-    //    if (!ep_node->get_next().empty()) {
-    //        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
-    //        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
-    //    }
-
-    return code;
-}
+//std::string synthesize_code_aux(const ExecutionPlanNode_ptr &ep_node,
+//                                gen_data_t &gen_data) {
+//    std::string code("");
+//
+//    std::cout << "Module Type: " << ep_node->get_module()->get_name()
+//              << std::endl;
+//
+//    // If the node has already been visited, return
+//    if (std::find(gen_data.visited_ep_nodes.begin(),
+//                  gen_data.visited_ep_nodes.end(),
+//                  ep_node->get_id()) != gen_data.visited_ep_nodes.end()) {
+//        return code;
+//    }
+//
+//    if (ep_node->get_module()->get_type() ==
+//        synapse::Module::ModuleType::tfhe_CurrentTime) {
+//        // Do nothing
+//        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+//        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
+//
+//    } else if (ep_node->get_module()->get_type() ==
+//               synapse::Module::ModuleType::tfhe_Conditional) {
+//        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+//        auto conditional_module =
+//            std::static_pointer_cast<synapse::targets::tfhe::Conditional>(
+//                ep_node->get_module());
+//
+//        size_t this_cond_val_num = gen_data.conditions.size();
+//        bool first_conditional_in_conditional_nesting = this_cond_val_num == 0;
+//
+//        gen_data.conditions.push_back(
+//            std::string("let cond_val") +
+//            std::to_string(gen_data.conditions.size()) + std::string(" = ") +
+//            conditional_module->generate_code() + std::string("\n"));
+//
+//        // FIXME This code is hardcoded for flattened if-else statements
+//        // FIXME I don't like this solution, but for now it will do
+//        //  Better solution -> See if this node is a child of a Else or Then
+//        //  node?
+//        if (first_conditional_in_conditional_nesting) {
+//            code += std::string("let result = cond_val");
+//            //            for (int n_value = gen_data.chunk_values_amount - 1;
+//            //            n_value >= 0;
+//            //                 --n_value) {
+//            //                code += std::string("val") +
+//            //                std::to_string(n_value); if (n_value > 0) {
+//            //                    code += std::string(", ");
+//            //                }
+//            //            }
+//            //            code += std::string(" = ");
+//        } else {
+//            code += std::string("&cond_val");
+//        }
+//        code += std::to_string(this_cond_val_num) + std::string(".mul_distr(") +
+//                synthesize_code_aux(ep_node->get_next()[0], gen_data) +
+//                std::string(").add(cond_val") +
+//                std::to_string(this_cond_val_num) +
+//                std::string(".map(not).mul_distr(") +
+//                synthesize_code_aux(ep_node->get_next()[1], gen_data) +
+//                std::string("))\n");
+//
+//    } else if (ep_node->get_module()->get_type() ==
+//               synapse::Module::ModuleType::tfhe_Then) {
+//        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+//        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
+//
+//    } else if (ep_node->get_module()->get_type() ==
+//               synapse::Module::ModuleType::tfhe_Else) {
+//        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+//        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
+//
+//    } else if (ep_node->get_module()->get_type() ==
+//               synapse::Module::ModuleType::tfhe_Operation) {
+//        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+//        auto operation_module =
+//            std::static_pointer_cast<synapse::targets::tfhe::Operation>(
+//                ep_node->get_module());
+//        code += operation_module->generate_code();
+//
+//    } else if (ep_node->get_module()->get_type() ==
+//               synapse::Module::tfhe_PacketBorrowNextChunk) {
+//        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+//        auto packet_borrow_next_chunk_module = std::static_pointer_cast<
+//            synapse::targets::tfhe::PacketBorrowNextChunk>(
+//            ep_node->get_module());
+//        //        code += packet_borrow_next_chunk_module->generate_code();
+//        gen_data.chunk_values_amount =
+//            packet_borrow_next_chunk_module->get_chunk_values_amount();
+//
+//        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
+//
+//    } else if (ep_node->get_module()->get_type() ==
+//               synapse::Module::tfhe_PacketBorrowNextSecret) {
+//        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+//        auto packet_borrow_next_secret_module = std::static_pointer_cast<
+//            synapse::targets::tfhe::PacketBorrowNextSecret>(
+//            ep_node->get_module());
+//        //        code += packet_borrow_next_secret_module->generate_code();
+//        gen_data.chunk_values_amount =
+//            packet_borrow_next_secret_module->get_chunk_values_amount();
+//
+//        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
+//    }
+//
+//    // FIXME This is probably too generic and I want to control each node that
+//    //  is to be processed
+//    //    if (!ep_node->get_next().empty()) {
+//    //        gen_data.visited_ep_nodes.push_back(ep_node->get_id());
+//    //        code += synthesize_code_aux(ep_node->get_next()[0], gen_data);
+//    //    }
+//
+//    return code;
+//}
 
 /// \brief Preprocess the Execution Plan to extract metadata. Starts at the
 /// first Conditional node. \param ep_node \param value_conditions \param value
@@ -514,11 +514,11 @@ std::string produce_ep_code(const ExecutionPlan &ep) {
 
 /// Recursively visit the parent node until the parent is a packet borrow
 /// Then, start returning the code up to bottom - back down
-std::string synthesize_code_aux(ExecutionPlanNode_ptr ep_node, int changed_value, klee::ref<klee::Expr> value_modification, int then_arm = -1) {
+std::string synthesize_code_aux(ExecutionPlanNode_ptr ep_node, int changed_value, int column_i, klee::ref<klee::Expr> value_modification, int then_arm = -1) {
     if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_Operation) {
 
-        return "\t" + std::string("let val") + std::to_string(changed_value) + " = (" + generate_tfhe_code(value_modification, true) + ")" +
-               synthesize_code_aux(ep_node->get_prev(), changed_value, nullptr);
+        return "\t" + std::string("let val") + std::to_string(changed_value) + "_" + std::to_string(column_i) + " = " + generate_tfhe_code(value_modification, true) +
+               synthesize_code_aux(ep_node->get_prev(), changed_value, column_i, nullptr);
 
 //        if (ep_node->get_prev()->get_prev()->get_module_type() == synapse::Module::ModuleType::tfhe_UnivariatePBS) {
 //            std::cout << "Found an Univariate PBS..." << std::endl;
@@ -543,19 +543,23 @@ std::string synthesize_code_aux(ExecutionPlanNode_ptr ep_node, int changed_value
 //            }
 //        }
     } else if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_Then) {
-        return " * " + synthesize_code_aux(ep_node->get_prev(), changed_value, nullptr, 1);
+        return " * " + synthesize_code_aux(ep_node->get_prev(), changed_value, column_i, nullptr, 1);
 
     } else if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_Else) {
-        return " * " + synthesize_code_aux(ep_node->get_prev(), changed_value, nullptr, 0);
+        return " * " + synthesize_code_aux(ep_node->get_prev(), changed_value, column_i, nullptr, 0);
 
     } else if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_UnivariatePBS) {
         std::string str = ep_node->get_module()->univariate_pbs_to_string(changed_value, nullptr, then_arm, false);
 
-        return str + synthesize_code_aux(ep_node->get_prev(), changed_value, nullptr, -1);
+        // FIXME Test
+        str = ep_node->get_module()->to_string_debug(then_arm, true, ep_node->cond_id);
+        return str + synthesize_code_aux(ep_node->get_prev(), changed_value, column_i, nullptr, -1);
     } else if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_BivariatePBS) {
         std::string str = ep_node->get_module()->bivariate_pbs_to_string(changed_value, nullptr, nullptr, then_arm, false);
 
-        return str + synthesize_code_aux(ep_node->get_prev(), changed_value, nullptr, -1);
+        // FIXME Test
+        str = ep_node->get_module()->to_string_debug(then_arm, true, ep_node->cond_id);
+        return str + synthesize_code_aux(ep_node->get_prev(), changed_value, column_i, nullptr, -1);
     }
 
     if (ep_node->get_module_type() == synapse::Module::ModuleType::tfhe_PacketBorrowNextSecret) {
@@ -577,7 +581,7 @@ std::string synthesize_code_aux(ExecutionPlanNode_ptr ep_node, int changed_value
     std::cerr << "No return statement on synthesizing code" << std::endl;
 }
 
-std::string synthesize_ep_code(const ExecutionPlan &ep) {
+std::string synthesize_ep_code(ExecutionPlan &ep) {
     std::ostringstream code;
 
     std::cout << "Synthesizing Execution Plan code..." << std::endl;
@@ -589,9 +593,7 @@ std::string synthesize_ep_code(const ExecutionPlan &ep) {
         synapse::Module::ModuleType::tfhe_PacketBorrowNextSecret);
     auto packet_borrow_module = std::static_pointer_cast<synapse::targets::tfhe::PacketBorrowNextSecret>(
         packet_borrow_node->get_module());
-    std::cout << "test" << std::endl;
     number_of_values = packet_borrow_module->get_chunk_values_amount();
-    std::cout << "test 2" << std::endl;
 
     code << "\t// Packet Borrow Next Secret\n";
 
@@ -604,11 +606,31 @@ std::string synthesize_ep_code(const ExecutionPlan &ep) {
     // (after printing the values) - Put code for counting time
     code << "\tlet time = std::time::Instant::now();" << std::endl;
 
-    std::cout << "test 3" << std::endl;
+    std::vector<ExecutionPlanNode_ptr> different_conditions = ep.get_all_different_conditions();
+
+    // Conditions calculation
+    for (auto& cond : different_conditions) {
+        if (cond->get_module_type() == synapse::Module::ModuleType::tfhe_UnivariatePBS) {
+            // True arm
+            code << "\tlet c" << std::to_string(cond->cond_id) << "_1" << " = ";
+            code << cond->get_module()->univariate_pbs_to_string(0, nullptr, 1, false) << ";\n";
+            // False arm
+            code << "\tlet c" << std::to_string(cond->cond_id) << "_0" << " = ";
+            code << cond->get_module()->univariate_pbs_to_string(0, nullptr, 0, false) << ";\n";
+        } else if (cond->get_module_type() == synapse::Module::ModuleType::tfhe_BivariatePBS) {
+            code << "\tlet c" << std::to_string(cond->cond_id) << "_1" << " = ";
+            code << cond->get_module()->bivariate_pbs_to_string(0, nullptr, nullptr, 1, false) << ";\n";
+            code << "\tlet c" << std::to_string(cond->cond_id) << "_0" << " = ";
+            code << cond->get_module()->bivariate_pbs_to_string(0, nullptr, nullptr, 0, false) << ";\n";
+        }
+    }
+
     std::vector<ExecutionPlanNode_ptr> packet_return_ep_nodes = ep.get_packet_return_chunks_ep_nodes();
-    std::cout << "test 4" << std::endl;
+
+    int num_of_columns = packet_return_ep_nodes.size();
 
     int packet_return_i = 0;
+    int column_i = 0;
     for (auto ep_node : packet_return_ep_nodes) {
         std::cout << "Packet Return Chunk " << packet_return_i << std::endl;
         auto operation_module = std::static_pointer_cast<synapse::targets::tfhe::Operation>(ep_node->get_module());
@@ -630,7 +652,7 @@ std::string synthesize_ep_code(const ExecutionPlan &ep) {
                 std::cout << "Value " << i << " is modified" << std::endl;
             }
 
-            code << synthesize_code_aux(ep_node, i, value_mods[i]);
+            code << synthesize_code_aux(ep_node, i, column_i, value_mods[i]);
 
             std::cout << "--------------------------------------------" << std::endl;
             std::cout << code.str() << std::endl;
@@ -638,7 +660,23 @@ std::string synthesize_ep_code(const ExecutionPlan &ep) {
         }
 
         packet_return_i += 1;
+        column_i += 1;
     }
+
+    num_of_columns = column_i;
+
+    std::string sum_of_columns = "\tlet val" + std::to_string(number_of_values - 1) + " = ";
+
+    for (int i = 0; i < num_of_columns; ++i) {
+        sum_of_columns += std::string("val") + std::to_string(number_of_values - 1) + "_" + std::to_string(i);
+        if (i == num_of_columns - 1) {
+            sum_of_columns += ";";
+        } else {
+            sum_of_columns += " + ";
+        }
+    }
+
+    code << sum_of_columns << std::string("\n");
 
     code << tfhe_end_boiler_plate(number_of_values);
 
@@ -698,7 +736,7 @@ int main(int argc, char **argv) {
     BDD::BDD bdd = build_bdd();
 
     auto start_search = std::chrono::steady_clock::now();
-    auto search_results = search(bdd, Peek);
+    std::pair<std::vector<ExecutionPlan>, SearchSpace> search_results = search(bdd, Peek);
     auto end_search = std::chrono::steady_clock::now();
 
     auto search_dt = std::chrono::duration_cast<std::chrono::seconds>(
@@ -706,10 +744,14 @@ int main(int argc, char **argv) {
                          .count();
 
     if (ShowEP) {
-        for (auto& ep : search_results.first) {
-            Graphviz::visualize(ep);
-        }
+        Graphviz::visualize(search_results.first.at(0), false, "/home/guibaeta/Documents/yaho-synapse/synthesized/graphs/main_" + std::to_string(0) + ".gv");
+
+//        for (int i = 0; i < search_results.first.size(); ++i) {
+//            Graphviz::visualize(search_results.first.at(i), false, "/home/guibaeta/Documents/yaho-synapse/synthesized/graphs/main_" + std::to_string(i) + ".gv");
+//        }
     }
+
+    std::cout << "Finished exporting graphs" << std::endl;
 
     if (ShowSS) {
         Graphviz::visualize(search_results.second);
