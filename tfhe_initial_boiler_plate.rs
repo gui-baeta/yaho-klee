@@ -12,10 +12,11 @@ use tfhe::{
 
 use config_file::FromConfigFile;
 use serde::Deserialize;
+use lazy_static::lazy_static;
 
 #[derive(Deserialize)]
-struct Config {
-    values: Vec<u32>,
+pub struct Config {
+    pub values: Vec<i32>,
 }
 
 lazy_static!{
@@ -23,7 +24,7 @@ lazy_static!{
 }
 
 
-type FheUint = FheUint3;
+type FheUint = FheUint4;
 
 fn main() {
 	let config = ConfigBuilder::all_disabled().enable_default_uint4().build();
@@ -55,20 +56,7 @@ fn main() {
 	}
 	println!("Done.");
 
-	// Create a new mutable String to store the user input
-	let mut input = String::new();
-
-	// Print a message to prompt the user for input
-	println!("Please enter three integers separated by spaces:");
-
-	// Read the user input from stdin
-	io::stdin().read_line(&mut input)
-	    .expect("Failed to read line");
-
 	// Split the input by whitespaces and collect them into a vector of strings
-	let values: Vec<i32> = input.trim()
-	    .split_whitespace()
-	    .map(|s| s.parse().unwrap()) // Parse each value into an integer
-	    .collect();
+	let values: &Vec<i32> = &CONFIG.values;
 
 	set_server_key(server_key);
