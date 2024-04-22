@@ -1,13 +1,11 @@
-use std::io;
 use bincode;
 
 use std::fs::File;
-use std::io::{Read, Write};
-use std::ops::Add;
+use std::io::{Write};
 
 use tfhe::prelude::*;
 use tfhe::{
-    generate_keys, set_server_key, ClientKey, ConfigBuilder, FheUint3, FheUint4, ServerKey,
+    generate_keys, set_server_key, ClientKey, ConfigBuilder, FheUint4, ServerKey,
 };
 
 use config_file::FromConfigFile;
